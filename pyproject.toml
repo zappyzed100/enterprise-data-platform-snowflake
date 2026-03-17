@@ -1,0 +1,11 @@
+[project]
+name = "enterprise-data-platform-snowflake"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.4.3",
+    "python-dotenv>=1.2.2",
+    "snowflake-snowpark-python[pandas]>=1.47.0",
+]
