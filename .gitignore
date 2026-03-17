@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Snowflake / Credentials (絶対に含めない)
+.env
+creds.json
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
