@@ -20,6 +20,3 @@ data/*.csv
 
 # Logs
 logs/
-
-# dbt
-enterprise_data_pipeline/profiles.yml  
