@@ -1,59 +1,86 @@
-# enterprise-data-platform-snowflake
+# Enterprise Data Platform with Snowflake & dbt
 
-配送コスト最適化ロジックを Snowflake 上の **Vectorized Python UDF** として実装し、大規模データに対するパフォーマンス検証と CI/CD パイプラインを統合したデータエンジニアリング・ポートフォリオです。
+配送コスト最適化ロジックを **Snowpark Python UDF** として実装し、**dbt** によるメダリオン・アーキテクチャで管理・自動化したエンドツーエンドのデータパイプラインです。
 
 ---
 
 ## 🚀 プロジェクトのハイライト
-* **Snowpark Vectorized UDF**: Pandas を用いたベクトル演算により、10,000件の幾何計算を高速にバッチ処理。
-* **パフォーマンス・ベンチマーク**: 純粋な SQL と Python UDF の実行速度を定量的に比較検証。
-* **モダンな開発環境**: `uv` (Astral) による高速な依存関係管理と、Snowflake 内蔵の Python ランタイム（Anaconda 供給パッケージ）とのバージョン整合を徹底。
-* **自動化 CI パイプライン**: GitHub Actions による Lint (flake8) と Unit Test (pytest) の自動実行環境を構築。
+* **dbt x Snowflake Architecture**: Bronze/Silver/Gold の 3 層構造によるデータガバナンスの実現。
+* **Hybrid Logic Execution**: SQL による高速な変換と、Python (Snowpark) による高度な配送コスト演算（ハバースサイン公式）を dbt モデル内で統合。
+* **Automated Data Quality**: dbt tests による整合性チェックと、GitHub Actions による CI パイプライン。
+* **Modern Toolstack**: `uv` による高速な依存関係管理と、Snowflake 接続情報の Secrets 管理の徹底。
 
 ---
 
 ## 🏗 アーキテクチャ
 
-
-
-1.  **Local Development**: `uv` + `pytest` でロジックの正確性をローカルで担保。
-2.  **Deployment**: Snowpark Session を介して Python ロジックを Snowflake 内の Internal Stage（@udf_stage）へデプロイ。
-3.  **Execution**: Snowflake 上で `CALCULATE_DELIVERY_COST` 関数として登録し、SQL から直接呼び出し可能に。
+1.  **Ingestion (Bronze)**: Faker で生成した 10,000 件の擬似データをロード。
+2.  **Transformation (Silver)**: `stg_orders` 等のモデルで型定義とクレンジングを実施。
+3.  **Optimization (Gold)**: `fct_delivery_analysis` において、Python UDF を呼び出し、最短配送拠点を自動選択（`QUALIFY` 句）。
+4.  **CI/CD**: PR 時に自動で環境構築・構文チェック・データテストを実行。
 
 ---
 
-## 📊 パフォーマンス検証結果
+## 📊 パイプライン品質 (Current Status)
 
-「10,000件の注文データを、2拠点との組み合わせで計20,000レコードとして処理し、ハバースサイン公式（地球の曲率を考慮した2点間距離）を用いた配送コスト計算の実行速度を比較しました。
+dbt による変換モデルと GitHub Actions による CI を組み合わせ、データ品質と再現性を担保しています。
 
-| 実装手法 | 10,000件の処理時間 | スループット | 技術的考察 |
+| 指標 | 結果 | 備考 |
+| :--- | :--- | :--- |
+| **dbt run 実行時間** | **~15s** | モデル構築・UDF 呼び出し・最短配送拠点抽出を含む |
+| **データ品質テスト** | **PASS (10/10)** | unique, not_null, relationships 等 |
+| **CI** | **PASS** | flake8, pytest, dbt debug, dbt test を自動実行 |
+
+## ⚡ 計算ベンチマーク
+
+10,000 件の注文データと 2 拠点の組み合わせ（20,000 レコード）に対し、配送コスト計算の実行速度を比較しました。
+
+| 実装手法 | 実行時間 | スループット | 技術的考察 |
 | :--- | :--- | :--- | :--- |
-| **Pure SQL**(キャッシュ無効) | **705 ms** | ~28,368 rec/sec | エンジン直結の最適化により最速。 |
-| **Python UDF** | **4.16 s** | ~4,804 rec/sec | **Pandasによるベクトル演算**。可読性・テスト性が高い。 |
+| **Pure SQL** | **705 ms** | **~28,368 rec/sec** | Snowflake の SQL エンジンで完結するため最速。 |
+| **Python UDF** | **4.16 s** | **~4,804 rec/sec** | Pandas ベースで可読性・保守性が高い。 |
 
 **分析:**
-**分析:**
-Python UDF は Pure SQL 比で約6倍の時間を要しましたが、これは Python サンドボックスの起動とデータ転送のオーバーヘッドによるものです。一方で、20,000レコード規模でも数秒で処理できており、複雑なビジネスロジックをテスト可能な Python で記述できる点は、保守性と開発効率の面で大きな利点です。
+Pure SQL は最速ですが、Python UDF でも 20,000 レコードを数秒で処理できており、複雑なビジネスロジックを Python でテスト可能な形で実装できる点に価値があります。本プロジェクトでは、速度だけでなく保守性と拡張性も重視しています。
 
 ---
 
 ## 🛠 技術スタック
 * **Data Warehouse**: Snowflake
-* **Framework**: Snowpark for Python
+* **Data Modeling**: dbt-core 1.11 (Snowflake adapter)
+* **Compute Engine**: Snowpark for Python
 * **Package Manager**: `uv` (Astral)
-* **Testing/CI**: `pytest`, `flake8`, GitHub Actions
-* **Libraries**: `pandas`, `numpy (2.4.2)`, `python-dotenv`
+* **CI/CD**: GitHub Actions
+* **Language**: SQL, Python 3.11
 
 ---
 
 ## 📂 ディレクトリ構造
 ```text
 .
-├── .github/workflows/    # CI (GitHub Actions) 設定
+├── .github/workflows/      # CI (GitHub Actions) 設定
+├── benchmark/
+│   └── sql/                # Pure SQL ベンチマーク用クエリ
+├── data/                   # サンプルCSVデータ(Git非推奨)
+├── ddl/                    # Snowflakeテーブル定義
+├── enterprise_data_pipeline/
+│   ├── models/
+│   │   ├── staging/        # Silver Layer (クレンジング・正規化)
+│   │   └── marts/          # Gold Layer (UDF連携・最短拠点計算)
+│   ├── target/             # dbt artifacts (dbt docs generate で一時生成。Git非推奨)
+│   └── profiles.yml        # 環境変数参照によるセキュアな接続設定
 ├── src/
-│   ├── udf/              # UDF コアロジック (Pandasベース)
-│   ├── scripts/          # デプロイおよび性能計測スクリプト
-│   └── data/             # テスト用ダミーデータ生成
-├── tests/                # ユニットテスト (pytest)
-├── pyproject.toml        # プロジェクト定義・依存関係
-└── .env                  # Snowflake 接続設定（非公開）
+│   ├── scripts/            # データ生成・初期ロード・性能計測スクリプト
+│   └── udf/                # 配送コスト計算ロジック
+├── tests/                  # pytest と検証用SQL
+└── README.md
+```
+
+---
+
+## 📅 今後のロードマップ
+- [ ] Streamlit による可視化: 分析マートの結果を地図上にプロットするシミュレーター。
+
+- [ ] Incremental Models: 大規模ログデータの増分更新（100万行〜）の最適化。
+
+- [ ] Data Security: 行レベルセキュリティ (RLS) による権限管理の実装。
