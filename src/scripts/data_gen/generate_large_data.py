@@ -1,7 +1,23 @@
+import argparse
+import os
+
 import pandas as pd
 import numpy as np
 from faker import Faker
-import os
+
+from generate_random_location import build_generation_context, generate_random_locations
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="受注・在庫データを生成する")
+    parser.add_argument(
+        "--number",
+        "-n",
+        type=int,
+        default=10000,
+        help="生成する受注件数 (default: 10000)",
+    )
+    return parser.parse_args()
 
 
 def generate_orders(num_records=10000):
@@ -11,12 +27,19 @@ def generate_orders(num_records=10000):
     products_df = pd.read_csv("data/03_seed/products.csv")
     product_ids = products_df["product_id"].tolist()
 
+    names, cumulative, total, points_by_city = build_generation_context()
+    locations = generate_random_locations(
+        n=num_records,
+        names=names,
+        cumulative=cumulative,
+        total=total,
+        points_by_city=points_by_city,
+    )
+
     orders = []
     for i in range(1, num_records + 1):
-        # 日本の範囲に絞って生成
-        # latitude: 31.0 to 45.0, longitude: 130.0 to 145.0
-        lat = float(fake.coordinate(center=38.0, radius=7.0))
-        lon = float(fake.coordinate(center=137.0, radius=7.0))
+        lat = float(locations[i - 1]["lat"])
+        lon = float(locations[i - 1]["lon"])
 
         orders.append(
             {
@@ -51,10 +74,14 @@ def generate_inventory():
 
 
 def main():
+    args = parse_args()
+    if args.number <= 0:
+        raise ValueError("number は 1 以上を指定してください")
+
     os.makedirs("data/04_out", exist_ok=True)
 
-    print("Generating 10,000 orders...")
-    orders_df = generate_orders(10000)
+    print(f"Generating {args.number:,} orders...")
+    orders_df = generate_orders(args.number)
     orders_df.to_csv("data/04_out/orders.csv", index=False)
 
     print("Generating full inventory matrix...")
