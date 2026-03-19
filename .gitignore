@@ -11,6 +11,9 @@ venv/
 creds.json
 *.pem
 
+# Streamlit
+.streamlit/
+
 # OS
 .DS_Store
 Thumbs.db
