@@ -6,14 +6,15 @@ terraform {
       version = "~> 2.13.0" # 使用するバージョンを指定
     }
   }
+
+  # organization / workspaces は backend.hcl (gitignore対象) から注入する
+  backend "remote" {}
 }
 
 provider "snowflake" {
-  # 環境変数 SNOWFLAKE_ACCOUNT の値を明示的に割り当てる
-  # もしくは、この行を削除して環境変数を下記の名前に変更する
   organization_name = var.snowflake_organization_name
-  account_name = var.snowflake_account_name
-  role    = "ACCOUNTADMIN"
+  account_name      = var.snowflake_account_name
+  role              = "ACCOUNTADMIN"
 
   # プレビュー機能を有効化する設定を追加
   preview_features_enabled = [
