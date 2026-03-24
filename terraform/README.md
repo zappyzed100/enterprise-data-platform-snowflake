@@ -4,63 +4,102 @@
 
 ## 基本方針
 
-- [backend.hcl](backend.hcl) には organization のみを記載します。
-- workspace 名は環境ごとの backend 設定ファイルで渡します。
-- 環境切替のたびに `terraform init -reconfigure` を実行します。
+- backend 設定は `backend.hcl` + `backend.<env>.hcl` で分離する
+- workspace 切替時は `terraform init -reconfigure` を実行する
+- 実行変数は HCP Terraform の Workspace Variables で管理する
 
-理由: Terraform backend 設定では通常の入力変数を使った動的切替ができず、`workspaces.name` のようなネスト項目は CLI 引数で直接渡せないためです。
+Terraform backend 設定は通常の入力変数で動的切替できないため、環境ごとの backend ファイルを使っています。
 
-## 事前準備
+## backend ファイルの作り方
 
-1. Terraform Cloud にログイン
+### 1. 共通ファイル: `backend.hcl`
+
+```hcl
+# Git管理しない
+organization = "<your-hcp-organization>"
+```
+
+### 2. DEV 用: `backend.dev.hcl`
+
+```hcl
+workspaces {
+  name = "<dev-workspace-name>"
+}
+```
+
+### 3. PROD 用: `backend.prod.hcl`
+
+```hcl
+workspaces {
+  name = "<prod-workspace-name>"
+}
+```
+
+## 実行手順
+
+### 1. 事前準備
 
 ```powershell
 terraform login
-```
-
-2. このディレクトリへ移動
-
-```powershell
 cd terraform
 ```
 
-## DEV ワークスペースで実行
+### 2. DEV ワークスペース
 
 ```powershell
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.dev.hcl"
 terraform plan
+terraform apply
 ```
 
-## PROD ワークスペースで実行
+### 3. PROD ワークスペース
 
 ```powershell
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.prod.hcl"
 terraform plan
-```
-
-## Apply
-
-```powershell
 terraform apply
 ```
 
-## 変数について
+## 変数管理
 
-HCP Terraform はリモートで実行されるため、ローカルの `.tfvars` ファイルは使えません。  
-対象ワークスペースの Variables ページで登録してください。
+HCP Terraform はリモート実行のため、ローカル `.tfvars` は使いません。
+Workspace の Variables 画面に登録してください。
 
 - URL: `https://app.terraform.io/app/<org>/<workspace>/settings/vars`
-- 種別: **Terraform variable** を選択
+- 種別: `Terraform variable`
 
-| 変数名                           | Sensitive | 種別        | 内容 (例)                                                   |
-|----------------------------------|-----------|-------------|-------------------------------------------------------------|
-| snowflake_organization_name      | —         | Terraform   | SNOWFLAKE_ACCOUNTの前半分                                   |
-| snowflake_account_name           | —         | Terraform   | SNOWFLAKE_ACCOUNTの後半分                                   |
-| dev_loader_user_rsa_public_key   | ✅         | Terraform   | (作成するLoaderユーザーの公開鍵: PEM本文)                   |
-| dev_dbt_user_rsa_public_key      | ✅         | Terraform   | (作成するdbtユーザーの公開鍵: PEM本文)                      |
-| snowflake_user                   | —         | Terraform   | TF_PROVISIONER (Terraform実行用ユーザー)                    |
-| snowflake_private_key            | ✅         | Terraform   | -----BEGIN RSA PRIVATE KEY----- ... (秘密鍵の中身)          |
+| 変数名                         | Sensitive | 内容 (例)                                         |
+|--------------------------------|-----------|---------------------------------------------------|
+| snowflake_organization_name    | いいえ    | SNOWFLAKE_ACCOUNT の前半分                        |
+| snowflake_account_name         | いいえ    | SNOWFLAKE_ACCOUNT の後半分                        |
+| snowflake_user                 | いいえ    | TF_PROVISIONER (Terraform実行ユーザー)            |
+| snowflake_private_key          | はい      | RSA秘密鍵 PEM 本文                                |
+| dev_loader_user_rsa_public_key | はい      | LoaderユーザーのRSA公開鍵 PEM 本文                |
+| dev_dbt_user_rsa_public_key    | はい      | dbtユーザーのRSA公開鍵 PEM 本文                   |
 
-登録後は `terraform plan` だけで実行できます（`init` の再実行は不要）。
+`snowflake_private_key` は入力時に改行が `\n` になっていても、コード側で改行復元して利用します。
 
-`snowflake_private_key` は HCP の入力都合で改行が `\n` になる場合がありますが、コード側で改行復元して利用しています。
+## lifecycle.prevent_destroy を false にしている理由
+
+`modules/snowflake_env/main.tf` の主要リソースで `prevent_destroy = false` を明示しています。
+
+理由は次の通りです。
+
+- 初期構築時に import/再作成の調整が必要になるケースがある
+- 学習・検証フェーズで作っては壊すサイクルが発生する
+- 既存リソースとの差分解消で destroy が必要になる場面がある
+
+本番で保護を強める場合は、Database/Schema/Role/User から順に `true` へ戻す運用を推奨します。
+
+## Network Policy をあえて設定しない理由
+
+`modules/snowflake_env/main.tf` 末尾の Network Policy はサンプルとしてコメントアウトしています。
+
+現時点で適用しない理由は次の通りです。
+
+- 実行環境（HCP Terraform 実行元IP）が固定ではなく、固定CIDR前提だと接続断が起きやすい
+- 開発段階ではまずデータ基盤リソースの安定化を優先したい
+- 誤ったIP制限は管理者自身のロックアウトにつながる
+
+Network Policy を導入する場合は、実行元IPを設計で確定させてから別PRで段階導入する方針とします。
+
