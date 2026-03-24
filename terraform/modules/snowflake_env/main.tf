@@ -520,7 +520,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_future"
 # ------ silver ------
 resource "snowflake_grant_privileges_to_account_role" "dbt_silver_db_usage" {
   account_role_name = snowflake_account_role.dbt_role.name
-  privileges        = ["USAGE"]
+  privileges        = ["USAGE", "CREATE SCHEMA"]
 
   on_account_object {
     object_type = "DATABASE"
@@ -549,7 +549,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_cleansed_all" {
 # ------ gold ------
 resource "snowflake_grant_privileges_to_account_role" "dbt_gold_db_usage" {
   account_role_name = snowflake_account_role.dbt_role.name
-  privileges        = ["USAGE"]
+  privileges        = ["USAGE", "CREATE SCHEMA"]
 
   on_account_object {
     object_type = "DATABASE"
