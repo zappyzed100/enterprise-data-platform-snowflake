@@ -113,11 +113,6 @@ with col2:
 with col3:
     st.metric("平均配送単価", f"¥{avg_unit_cost:,.1f}")
 
-# --- 配送コスト推移 ---
-st.subheader("配送コスト推移")
-df_daily_cost = filtered_df.groupby("ORDER_DATE")["SIMULATED_COST"].sum()
-st.line_chart(df_daily_cost, use_container_width=True)
-
 # --- 分析詳細 ---
 st.subheader("分析詳細")
 tab1, tab2 = st.tabs(["拠点別コスト集計", "拠点別データ一覧"])
