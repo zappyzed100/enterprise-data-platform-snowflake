@@ -4,9 +4,9 @@ with source as (
 
 renamed as (
     select
-        "PRODUCT_ID" as product_id,
+        try_to_number("PRODUCT_ID") as product_id,
         "PRODUCT_NAME" as product_name,
-        "WEIGHT_KG" as weight_kg
+        try_to_double("WEIGHT_KG") as weight_kg
     from source
 )
 
