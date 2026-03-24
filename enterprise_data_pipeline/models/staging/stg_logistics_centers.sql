@@ -4,10 +4,10 @@ with source as (
 
 renamed as (
     select
-        "CENTER_ID" as center_id,
+        try_to_number("CENTER_ID") as center_id,
         "CENTER_NAME" as center_name,
-        "LATITUDE" as latitude,
-        "LONGITUDE" as longitude
+        try_to_double("LATITUDE") as latitude,
+        try_to_double("LONGITUDE") as longitude
     from source
 )
 

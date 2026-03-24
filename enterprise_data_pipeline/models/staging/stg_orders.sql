@@ -4,13 +4,13 @@ with source as (
 
 renamed as (
     select
-        "ORDER_ID" as order_id,
-        "PRODUCT_ID" as product_id,
-        "QUANTITY" as quantity,
-        "CUSTOMER_LAT" as customer_lat,
-        "CUSTOMER_LON" as customer_lon,
-        -- 文字列をタイムスタンプ型へキャスト
-        cast("ORDER_DATE" as timestamp) as ordered_at
+        try_to_number("ORDER_ID") as order_id,
+        try_to_number("PRODUCT_ID") as product_id,
+        try_to_number("QUANTITY") as quantity,
+        try_to_double("CUSTOMER_LAT") as customer_lat,
+        try_to_double("CUSTOMER_LON") as customer_lon,
+        -- Bronze 層は文字列受けなので Silver で型を揃える
+        try_to_timestamp_ntz("ORDER_DATE") as ordered_at
     from source
 )
 

@@ -1,8 +1,18 @@
+import os
 import streamlit as st
+from dotenv import load_dotenv
 from snowflake.snowpark import Session
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+)
 import pandas as pd
 import pydeck as pdk
 import json
+
+load_dotenv()
 
 # ページ設定
 st.set_page_config(page_title="Logistics KPI Dashboard", layout="wide")
@@ -12,7 +22,23 @@ st.title("🚚 Logistics KPI Dashboard")
 # Snowpark Session
 @st.cache_resource
 def create_session():
-    return Session.builder.configs(st.secrets["connections"]["snowpark"]).create()
+    pem = os.environ["DEV_STREAMLIT_USER_RSA_PRIVATE_KEY"].replace("\\n", "\n")
+    private_key_der = load_pem_private_key(pem.encode(), password=None).private_bytes(
+        encoding=Encoding.DER,
+        format=PrivateFormat.PKCS8,
+        encryption_algorithm=NoEncryption(),
+    )
+    return Session.builder.configs(
+        {
+            "account": "CWNOMGN-AF62260",
+            "user": "DEV_STREAMLIT_USER",
+            "private_key": private_key_der,
+            "role": "DEV_STREAMLIT_READ_ROLE",
+            "warehouse": "DEV_STREAMLIT_WH",
+            "database": "DEV_GOLD_DB",
+            "schema": "MARKETING_MART",
+        }
+    ).create()
 
 
 session = create_session()
@@ -20,7 +46,7 @@ session = create_session()
 
 @st.cache_data
 def get_analysis_data():
-    return session.table("fct_delivery_analysis").to_pandas()
+    return session.table("FCT_DELIVERY_ANALYSIS").to_pandas()
 
 
 df = get_analysis_data()
@@ -87,12 +113,6 @@ with col2:
 with col3:
     st.metric("平均配送単価", f"¥{avg_unit_cost:,.1f}")
 
-# --- 配送コスト推移 ---
-st.subheader("配送コスト推移")
-df_daily_cost = filtered_df.groupby("ORDER_DATE")["SIMULATED_COST"].sum()
-# width='stretch' に変更
-st.line_chart(df_daily_cost, width="stretch")
-
 # --- 分析詳細 ---
 st.subheader("分析詳細")
 tab1, tab2 = st.tabs(["拠点別コスト集計", "拠点別データ一覧"])
@@ -104,13 +124,11 @@ warehouse_summary = (
 )
 
 with tab1:
-    # width='stretch' に変更
-    st.bar_chart(warehouse_summary["SIMULATED_COST"], width="stretch")
+    st.bar_chart(warehouse_summary["SIMULATED_COST"], use_container_width=True)
 with tab2:
-    # use_container_width=True から width='stretch' に変更
     st.dataframe(
         warehouse_summary.style.format({"SIMULATED_COST": "¥{:,.0f}"}),
-        width="stretch",
+        use_container_width=True,
     )
 
 # --- 4. 地理情報の可視化 (pydeck) ---

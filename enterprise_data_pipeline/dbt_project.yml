@@ -31,6 +31,15 @@ clean-targets:         # directories to be removed by `dbt clean`
 # files using the `{{ config(...) }}` macro.
 models:
   enterprise_data_pipeline:
-    # Config indicated by + and applies to all files under models/example/
-    example:
+    staging:
       +materialized: view
+      +database: "{{ env_var('SNOWFLAKE_SILVER_DATABASE', env_var('DBT_ENV_NAME', 'DEV') | upper ~ '_SILVER_DB') }}"
+      +schema: "{{ env_var('SNOWFLAKE_SILVER_SCHEMA', 'CLEANSED') }}"
+    intermediate:
+      +materialized: view
+      +database: "{{ env_var('SNOWFLAKE_SILVER_DATABASE', env_var('DBT_ENV_NAME', 'DEV') | upper ~ '_SILVER_DB') }}"
+      +schema: "{{ env_var('SNOWFLAKE_SILVER_SCHEMA', 'CLEANSED') }}"
+    marts:
+      +materialized: view
+      +database: "{{ env_var('SNOWFLAKE_GOLD_DATABASE', env_var('DBT_ENV_NAME', 'DEV') | upper ~ '_GOLD_DB') }}"
+      +schema: "{{ env_var('SNOWFLAKE_GOLD_SCHEMA', 'MARKETING_MART') }}"

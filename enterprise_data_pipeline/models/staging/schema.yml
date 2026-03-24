@@ -13,8 +13,9 @@ models:
         description: "注文された商品のID。PRODUCTSテーブルとの整合性をチェック。"
         tests:
           - relationships:
-              to: ref('stg_products')
-              field: product_id
+              arguments:
+                to: ref('stg_products')
+                field: product_id
 
   - name: stg_products
     description: "商品マスターデータ。"

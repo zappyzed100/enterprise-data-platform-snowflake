@@ -14,6 +14,24 @@ creds.json
 # Streamlit
 .streamlit/
 
+# Terraform の一時ディレクトリとプラグイン
+**/.terraform/
+
+# ステートファイル（ローカル実行時の状態記録）
+*.tfstate
+*.tfstate.*
+
+# 変数定義ファイル（パスワードなどが含まれるため除外）
+*.tfvars
+*.tfvars.json
+*backend.hcl
+*backend.dev.hcl
+*backend.prod.hcl
+
+
+# ログファイル
+crash.log
+
 # OS
 .DS_Store
 Thumbs.db
