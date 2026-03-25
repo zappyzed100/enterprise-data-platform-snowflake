@@ -86,6 +86,76 @@ uv run python src/scripts/deploy/run_dbt.py test
 uv run streamlit run src/streamlit/app.py
 ```
 
+## Docker で開発する
+
+このプロジェクトは Snowflake を外部データ基盤として利用します。
+そのため、Docker Compose の目的は「アプリ実行環境の統一」であり、ローカルDBコンテナの同梱ではありません。
+
+### 1) 事前準備
+
+1. `.env` を作成し、Snowflake 接続用の環境変数を設定する
+2. `.streamlit/secrets.toml` を作成する
+
+最小例は上記「クイックスタート」の設定例を参照してください。
+
+### 2) ビルドと起動
+
+Streamlit を起動します。
+
+```bash
+docker compose up --build
+```
+
+API も起動する場合。
+
+```bash
+docker compose --profile api up --build
+```
+
+Dagster も起動する場合。
+
+```bash
+docker compose --profile orchestration up --build
+```
+
+### 3) 動作確認
+
+1. 起動状態の確認
+
+```bash
+docker compose ps
+```
+
+2. ホストからのアクセス確認
+- Streamlit: `http://localhost:8501`
+- FastAPI (profile api 起動時): `http://localhost:8000/docs`
+- Dagster (profile orchestration 起動時): `http://localhost:3000`
+
+3. ホットリロード確認
+- ホスト側で `src/streamlit/app.py` または `src/api/main.py` を編集し、画面/レスポンスに変更が反映されること
+
+4. Snowflake 接続確認
+- アプリ起動後、接続エラーが発生しないこと
+- 必要に応じて以下で dbt 接続確認を実施する
+
+```bash
+docker compose run --rm streamlit python src/scripts/deploy/run_dbt.py debug
+```
+
+### 4) 停止
+
+```bash
+docker compose down
+```
+
+## Docker 導入Issueの完了チェック
+
+- [ ] `docker compose up --build` で対象サービスが起動する
+- [ ] ホストから Streamlit/API へアクセスできる
+- [ ] コード変更がコンテナ実行へ反映される（ホットリロード）
+- [ ] Snowflake 接続確認ができる
+- [ ] 本 README の Docker 手順で再現できる
+
 ## 現在の実装方針
 
 - 配送コスト計算は dbt の Pure SQL モデルを主軸にしています
