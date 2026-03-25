@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load APP_ENV from .env when APP_ENV is not explicitly provided.
+if [[ -z "${APP_ENV:-}" && -f "${PROJECT_ROOT}/.env" ]]; then
+  app_env_from_file="$({ sed 's/\r$//' "${PROJECT_ROOT}/.env" | grep -E '^[[:space:]]*APP_ENV[[:space:]]*=' | tail -n 1 || true; } | sed -E 's/^[[:space:]]*APP_ENV[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//' | tr -d '"' | tr -d "'")"
+  if [[ -n "${app_env_from_file}" ]]; then
+    APP_ENV="${app_env_from_file}"
+  fi
+fi
+
+APP_ENV_LOWER="${APP_ENV:-dev}"
+case "${APP_ENV_LOWER}" in
+  dev|prod)
+    ;;
+  *)
+    echo "[tf] APP_ENV must be 'dev' or 'prod' (current: ${APP_ENV_LOWER})" >&2
+    exit 1
+    ;;
+esac
+
+export TF_VAR_app_env="${APP_ENV_LOWER}"
+
+# For remote backend runs, force app_env via auto tfvars instead of -var.
+APP_ENV_AUTO_TFVARS="${SCRIPT_DIR}/99_app_env.auto.tfvars"
+printf 'app_env = "%s"\n' "${APP_ENV_LOWER}" > "${APP_ENV_AUTO_TFVARS}"
+
+COMMON_BACKEND_CONFIG="${SCRIPT_DIR}/backend.hcl"
+ENV_BACKEND_CONFIG="${SCRIPT_DIR}/backend.${APP_ENV_LOWER}.hcl"
+
+if [[ ! -f "${COMMON_BACKEND_CONFIG}" ]]; then
+  echo "[tf] Missing backend config: ${COMMON_BACKEND_CONFIG}" >&2
+  exit 1
+fi
+if [[ ! -f "${ENV_BACKEND_CONFIG}" ]]; then
+  echo "[tf] Missing backend config: ${ENV_BACKEND_CONFIG}" >&2
+  exit 1
+fi
+
+ensure_init() {
+  terraform -chdir="${SCRIPT_DIR}" init \
+    -reconfigure \
+    -backend-config="${COMMON_BACKEND_CONFIG}" \
+    -backend-config="${ENV_BACKEND_CONFIG}" >/dev/null
+}
+
+cmd="${1:-}"
+if [[ -z "${cmd}" ]]; then
+  echo "Usage: ./terraform/tf <init|plan|apply|...> [args...]" >&2
+  exit 1
+fi
+shift || true
+
+case "${cmd}" in
+  init)
+    terraform -chdir="${SCRIPT_DIR}" init \
+      -reconfigure \
+      -backend-config="${COMMON_BACKEND_CONFIG}" \
+      -backend-config="${ENV_BACKEND_CONFIG}" "$@"
+    ;;
+  *)
+    ensure_init
+    terraform -chdir="${SCRIPT_DIR}" "${cmd}" "$@"
+    ;;
+esac

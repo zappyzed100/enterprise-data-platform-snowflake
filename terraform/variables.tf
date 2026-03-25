@@ -108,6 +108,13 @@ variable "SNOWFLAKE_AUTHENTICATOR" {
   description = "snowflakeへの認証方法設定"
 }
 
+variable "SNOWFLAKE_ROLE" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Terraform 実行時に使用する Snowflake ロール。未設定時は環境に応じて DEV_TF_ADMIN_ROLE / PROD_TF_ADMIN_ROLE を自動選択"
+}
+
 # 互換性のための旧変数名（HCP側が未切替でも動作させる）
 variable "SNOWFLAKE_USER" {
   type        = string
