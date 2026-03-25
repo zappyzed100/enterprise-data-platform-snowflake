@@ -33,7 +33,15 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
     ca-certificates \
     git \
+    gnupg \
+    lsb-release \
     openssh-client \
+    wget \
+    && wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor > /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && chmod 644 /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends terraform \
     && rm -rf /var/lib/apt/lists/*
 
 # 日本語ロケールやタイムゾーンが必要な場合はここで設定
