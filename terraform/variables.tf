@@ -1,16 +1,78 @@
 # terraform/variables.tf
+variable "app_env" {
+  type        = string
+  default     = "dev"
+  description = "実行環境 (dev または prod)"
+
+  validation {
+    condition     = contains(["dev", "prod"], lower(var.app_env))
+    error_message = "app_env には dev または prod を指定してください。"
+  }
+}
+
+variable "loader_user_rsa_public_key" {
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+  description = "環境共通の Loader ユーザー公開鍵（推奨）"
+}
+
+variable "dbt_user_rsa_public_key" {
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+  description = "環境共通の dbt ユーザー公開鍵（推奨）"
+}
+
+variable "streamlit_user_rsa_public_key" {
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+  description = "環境共通の Streamlit ユーザー公開鍵（推奨）"
+}
+
 variable "dev_loader_user_rsa_public_key" {
   type      = string
+  default   = null
+  nullable  = true
   sensitive = true
 }
 
 variable "dev_dbt_user_rsa_public_key" {
   type      = string
+  default   = null
+  nullable  = true
   sensitive = true
 }
 
 variable "dev_streamlit_user_rsa_public_key" {
   type      = string
+  default   = null
+  nullable  = true
+  sensitive = true
+}
+
+variable "prod_loader_user_rsa_public_key" {
+  type      = string
+  default   = null
+  nullable  = true
+  sensitive = true
+}
+
+variable "prod_dbt_user_rsa_public_key" {
+  type      = string
+  default   = null
+  nullable  = true
+  sensitive = true
+}
+
+variable "prod_streamlit_user_rsa_public_key" {
+  type      = string
+  default   = null
+  nullable  = true
   sensitive = true
 }
 

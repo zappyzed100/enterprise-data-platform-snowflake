@@ -12,8 +12,8 @@ terraform {
 }
 
 locals {
-  snowflake_user_effective = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
-  snowflake_private_key_raw = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
+  snowflake_user_effective        = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
+  snowflake_private_key_raw       = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
   snowflake_private_key_effective = local.snowflake_private_key_raw != null ? replace(local.snowflake_private_key_raw, "\\n", "\n") : null
 }
 

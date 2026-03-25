@@ -10,18 +10,21 @@ variable "env" {
 
 variable "loader_user_rsa_public_key" {
   type        = string
+  nullable    = false
   sensitive   = true
   description = "LoaderユーザーのRSA公開鍵"
 }
 
 variable "dbt_user_rsa_public_key" {
   type        = string
+  nullable    = false
   sensitive   = true
   description = "dbtユーザーのRSA公開鍵"
 }
 
 variable "streamlit_user_rsa_public_key" {
   type        = string
+  nullable    = false
   sensitive   = true
   description = "dbtユーザーのRSA公開鍵"
 }

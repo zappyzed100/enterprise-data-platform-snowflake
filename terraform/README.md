@@ -6,6 +6,7 @@
 
 - Backend設定の分離: `backend.hcl`（共通）と `backend.<env>.hcl`（環境別）を組み合わせて使用する
 - 環境切り替え: Workspace の切り替えは `terraform init -reconfigure` で行う
+- 実行環境切り替え: `APP_ENV`（`dev` / `prod`）から `TF_VAR_app_env` を注入し、作成対象の Snowflake リソース名を切り替える
 - 変数管理: 実行変数は HCP Terraform の Workspace Variables で一元管理し、ローカルの `.tfvars` は使用しない
 
 ## 1. HCP Terraform セットアップ
@@ -24,9 +25,9 @@ Workspace 内の `Settings` > `Variables` から登録してください。
 
 | Key                              | Value                            | Category  | Sensitive |
 |----------------------------------|----------------------------------|-----------|-----------|
-| dev_loader_user_rsa_public_key   | (Public Key)                     | terraform | No        |
-| dev_dbt_user_rsa_public_key      | (Public Key)                     | terraform | No        |
-| dev_streamlit_user_rsa_public_key| (Public Key)                     | terraform | No        |
+| loader_user_rsa_public_key       | (Public Key)                     | terraform | No        |
+| dbt_user_rsa_public_key          | (Public Key)                     | terraform | No        |
+| streamlit_user_rsa_public_key    | (Public Key)                     | terraform | No        |
 | snowflake_organization_name      | (Account名の前半分)               | terraform | No        |
 | snowflake_account_name           | (Account名の後半分)               | terraform | No        |
 | SNOWFLAKE_USER                   | (User Name)                      | env       | No        |
@@ -34,6 +35,9 @@ Workspace 内の `Settings` > `Variables` から登録してください。
 | SNOWFLAKE_AUTHENTICATOR          | SNOWFLAKE_JWT                    | env       | No        |
 
 Note:
+
+- 各 Workspace では、その Workspace 用の値のみを登録してください（DEV Workspace なら `app_env=dev`、PROD Workspace なら `app_env=prod`）。
+- `dev_*` / `prod_*` 形式の変数は後方互換のため引き続き利用可能ですが、新規設定では `loader_user_rsa_public_key` などの共通キー名を推奨します。
 
 - Sensitive 設定した値は後から参照できません。元データは鍵管理システム等で安全に保管してください。
 - `SNOWFLAKE_PRIVATE_KEY` はは改行コードを含むマルチライン形式のデータであるため、
@@ -88,6 +92,8 @@ Docker コンテナ内で実行する場合も、初回は `terraform login` に
 
 ```bash
 cd terraform
+export APP_ENV=dev
+export TF_VAR_app_env="$APP_ENV"
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.dev.hcl"
 terraform plan
 terraform apply
@@ -97,10 +103,17 @@ terraform apply
 
 ```bash
 cd terraform
+export APP_ENV=prod
+export TF_VAR_app_env="$APP_ENV"
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.prod.hcl"
 terraform plan
 terraform apply
 ```
+
+補足:
+
+- `TF_VAR_app_env` が未設定の場合、Terraform では `dev` がデフォルト値として利用されます。
+- `APP_ENV=prod` で実行する場合は `prod_*_rsa_public_key` 変数が必須です。
 
 ## 4. 設計判断（ADR）
 
