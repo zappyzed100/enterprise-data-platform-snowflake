@@ -128,7 +128,7 @@ with tab1:
 with tab2:
     st.dataframe(
         warehouse_summary.style.format({"SIMULATED_COST": "¥{:,.0f}"}),
-        use_container_width=True,
+        width="stretch",
     )
 
 # --- 4. 地理情報の可視化 (pydeck) ---
