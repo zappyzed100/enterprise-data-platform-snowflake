@@ -37,16 +37,19 @@ workspaces {
 
 ## 実行手順
 
+Docker イメージには Terraform CLI を同梱しています。
+`docker compose up --build` 後のコンテナ内では、そのまま `terraform` を実行できます。
+
 ### 1. 事前準備
 
-```powershell
+```bash
 terraform login
 cd terraform
 ```
 
 ### 2. DEV ワークスペース
 
-```powershell
+```bash
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.dev.hcl"
 terraform plan
 terraform apply
@@ -54,7 +57,7 @@ terraform apply
 
 ### 3. PROD ワークスペース
 
-```powershell
+```bash
 terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.prod.hcl"
 terraform plan
 terraform apply

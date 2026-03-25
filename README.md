@@ -86,6 +86,42 @@ uv run python src/scripts/deploy/run_dbt.py test
 uv run streamlit run src/streamlit/app.py
 ```
 
+## Terraform で Snowflake リソースを適用する
+
+Snowflake のロール/DB/ユーザーなどの基盤リソースは `terraform/` で管理します。
+詳細な設計方針は `terraform/README.md` を参照してください。ここでは最短手順のみ記載します。
+
+Docker イメージには Terraform CLI を同梱しています（`docker compose up --build` 後のコンテナ内で利用可）。
+
+### 1) 事前準備
+
+```bash
+terraform login
+cd terraform
+```
+
+### 2) DEV へ適用
+
+```bash
+terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.dev.hcl"
+terraform plan
+terraform apply
+```
+
+### 3) PROD へ適用
+
+```bash
+terraform init -reconfigure -backend-config="backend.hcl" -backend-config="backend.prod.hcl"
+terraform plan
+terraform apply
+```
+
+### 4) 補足
+
+- HCP Terraform の remote backend 前提です
+- 実行変数はローカル `.tfvars` ではなく、HCP Terraform Workspace Variables に設定します
+- ワークスペースを切り替えるたびに `terraform init -reconfigure` を実行します
+
 ## Docker で開発する
 
 このプロジェクトは Snowflake を外部データ基盤として利用します。
