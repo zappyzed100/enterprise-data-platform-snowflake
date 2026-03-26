@@ -40,3 +40,93 @@ jobs:
       # 明示的に tests/ ディレクトリを指定するか、収集対象から除外します。
       run: |
         uv run pytest tests/
+
+  dbt-debug:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        app_env: [dev, prod]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        version: "latest"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --frozen --all-groups
+
+    - name: Show app env
+      env:
+        APP_ENV: ${{ matrix.app_env }}
+      run: |
+        echo "APP_ENV=${APP_ENV}"
+
+    - name: Run dbt debug
+      env:
+        APP_ENV: ${{ matrix.app_env }}
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        DEV_BRONZE_DB: ${{ vars.DEV_BRONZE_DB || 'DEV_BRONZE_DB' }}
+        DEV_SILVER_DB: ${{ vars.DEV_SILVER_DB || 'DEV_SILVER_DB' }}
+        DEV_GOLD_DB: ${{ vars.DEV_GOLD_DB || 'DEV_GOLD_DB' }}
+        PROD_BRONZE_DB: ${{ vars.PROD_BRONZE_DB || 'PROD_BRONZE_DB' }}
+        PROD_SILVER_DB: ${{ vars.PROD_SILVER_DB || 'PROD_SILVER_DB' }}
+        PROD_GOLD_DB: ${{ vars.PROD_GOLD_DB || 'PROD_GOLD_DB' }}
+        DEV_DBT_USER: ${{ secrets.DEV_DBT_USER }}
+        PROD_DBT_USER: ${{ secrets.PROD_DBT_USER }}
+        DEV_DBT_ROLE: ${{ secrets.DEV_DBT_ROLE }}
+        PROD_DBT_ROLE: ${{ secrets.PROD_DBT_ROLE }}
+        DEV_DBT_WH: ${{ secrets.DEV_DBT_WAREHOUSE }}
+        PROD_DBT_WH: ${{ secrets.PROD_DBT_WAREHOUSE }}
+        DEV_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
+        PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_DEV: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PROD: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      run: |
+        uv run python src/scripts/deploy/run_dbt.py debug
+
+  dbt-rebuild-verify-dev:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        version: "latest"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --frozen --all-groups
+
+    - name: Verify dbt rebuild on dev
+      env:
+        APP_ENV: dev
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        DEV_BRONZE_DB: ${{ vars.DEV_BRONZE_DB || 'DEV_BRONZE_DB' }}
+        DEV_SILVER_DB: ${{ vars.DEV_SILVER_DB || 'DEV_SILVER_DB' }}
+        DEV_GOLD_DB: ${{ vars.DEV_GOLD_DB || 'DEV_GOLD_DB' }}
+        DEV_DBT_USER: ${{ secrets.DEV_DBT_USER }}
+        DEV_DBT_ROLE: ${{ secrets.DEV_DBT_ROLE }}
+        DEV_DBT_WH: ${{ secrets.DEV_DBT_WAREHOUSE }}
+        DEV_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_DEV: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      run: |
+        uv run python src/scripts/deploy/verify_dbt_view_rebuild.py
