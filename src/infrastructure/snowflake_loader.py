@@ -19,7 +19,7 @@ class LoadSpec:
 
 class SnowflakeLoader:
     def __init__(self):
-        self.env = os.getenv("SNOWFLAKE_ENV", "DEV").upper()
+        self.env = self._resolve_app_env()
         self.account = self._require_env("SNOWFLAKE_ACCOUNT")
         self.user = os.getenv("SNOWFLAKE_LOADER_USER") or f"{self.env}_LOADER_USER"
         self.role = os.getenv("SNOWFLAKE_LOADER_ROLE") or f"{self.env}_LOADER_ROLE"
@@ -46,6 +46,14 @@ class SnowflakeLoader:
             schema=self.schema,
             role=self.role,
         )
+
+    def _resolve_app_env(self) -> str:
+        app_env = (os.getenv("APP_ENV") or "dev").strip().lower() or "dev"
+        if app_env not in {"dev", "prod"}:
+            raise ValueError(
+                f"APP_ENV must be 'dev' or 'prod' (current: {app_env})"
+            )
+        return app_env.upper()
 
     def _require_env(self, key: str) -> str:
         value = os.getenv(key)
