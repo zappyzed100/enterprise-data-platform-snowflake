@@ -33,8 +33,6 @@ def _sanitize_runtime_env(env: dict[str, str]) -> None:
         if value is not None:
             env[key] = value.strip()
 
-
-
 def _write_private_key_file(env: dict[str, str]) -> str | None:
     existing_path = env.get("SNOWFLAKE_DBT_PRIVATE_KEY_PATH")
     if existing_path:

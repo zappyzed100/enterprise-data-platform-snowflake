@@ -192,8 +192,6 @@ def _assert_views(conn, target: str) -> None:
         formatted = ", ".join([".".join(m) for m in sorted(missing)])
         raise RuntimeError(f"Rebuild verification failed. Missing views: {formatted}")
 
-
-
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[3]
     load_dotenv(repo_root / ".env")
