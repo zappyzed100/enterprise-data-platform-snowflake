@@ -16,34 +16,23 @@ def _target_suffix(target: str) -> str:
     return target.upper()
 
 
-def _set_target_specific_env(env: dict[str, str]) -> None:
-    target = _resolve_target(env)
-    suffix = _target_suffix(target)
-
-    # Keep compatibility with legacy generic env vars while preferring
-    # target-specific values when they are available.
-    for generic, scoped in (
-        ("SNOWFLAKE_DBT_USER", f"SNOWFLAKE_DBT_USER_{suffix}"),
-        ("SNOWFLAKE_DBT_ROLE", f"SNOWFLAKE_DBT_ROLE_{suffix}"),
-        ("SNOWFLAKE_DBT_WAREHOUSE", f"SNOWFLAKE_DBT_WAREHOUSE_{suffix}"),
-        ("SNOWFLAKE_DBT_PRIVATE_KEY", f"SNOWFLAKE_DBT_PRIVATE_KEY_{suffix}"),
-        (
-            "SNOWFLAKE_DBT_PRIVATE_KEY_PATH",
-            f"SNOWFLAKE_DBT_PRIVATE_KEY_PATH_{suffix}",
-        ),
-        (
-            "SNOWFLAKE_SILVER_DATABASE",
-            f"SNOWFLAKE_SILVER_DATABASE_{suffix}",
-        ),
-        ("SNOWFLAKE_GOLD_DATABASE", f"SNOWFLAKE_GOLD_DATABASE_{suffix}"),
-        (
-            "SNOWFLAKE_BRONZE_DATABASE",
-            f"SNOWFLAKE_BRONZE_DATABASE_{suffix}",
-        ),
+def _sanitize_runtime_env(env: dict[str, str]) -> None:
+    # Guard against CRLF-contaminated values (e.g. account ends with '\r').
+    for key in (
+        "SNOWFLAKE_ACCOUNT",
+        "DEV_DBT_USER",
+        "DEV_DBT_ROLE",
+        "DEV_DBT_WH",
+        "DEV_BRONZE_DB",
+        "PROD_DBT_USER",
+        "PROD_DBT_ROLE",
+        "PROD_DBT_WH",
+        "PROD_BRONZE_DB",
     ):
-        scoped_value = env.get(scoped)
-        if scoped_value and not env.get(generic):
-            env[generic] = scoped_value
+        value = env.get(key)
+        if value is not None:
+            env[key] = value.strip()
+
 
 
 def _write_private_key_file(env: dict[str, str]) -> str | None:
@@ -90,12 +79,16 @@ def _resolve_dbt_command(args: list[str]) -> list[str]:
 def main() -> int:
     repo_root = Path(__file__).resolve().parents[3]
     project_dir = repo_root / "enterprise_data_pipeline"
+    cli_target = os.environ.get("APP_ENV", "")
 
-    load_dotenv(repo_root / ".env")
+    load_dotenv(repo_root / ".env", override=True)
 
     env = os.environ.copy()
-    env["APP_ENV"] = _resolve_target(env)
-    _set_target_specific_env(env)
+    _sanitize_runtime_env(env)
+    if cli_target.strip():
+        env["APP_ENV"] = cli_target.strip().lower()
+    else:
+        env["APP_ENV"] = _resolve_target(env)
     env.setdefault("DBT_PROFILES_DIR", str(project_dir))
     temp_key_path = _write_private_key_file(env)
 
