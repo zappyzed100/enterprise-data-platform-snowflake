@@ -30,7 +30,7 @@ def _required_env(name: str) -> str:
 
 
 def _target_env_prefix() -> str:
-    app_env = os.getenv("APP_ENV", "dev").strip().lower()
+    app_env = _required_env("APP_ENV").strip().lower()
     if app_env not in {"dev", "prod"}:
         raise RuntimeError("環境変数 APP_ENV は dev または prod を指定してください")
     return app_env.upper()
@@ -71,7 +71,7 @@ session = create_session()
 
 @st.cache_data
 def get_analysis_data():
-    return session.table("FCT_DELIVERY_ANALYSIS").to_pandas()
+    return session.table(_required_env("STREAMLIT_ANALYSIS_TABLE")).to_pandas()
 
 
 df = get_analysis_data()
