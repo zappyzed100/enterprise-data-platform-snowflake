@@ -103,6 +103,11 @@ def _parse_args() -> argparse.Namespace:
         "--dotenv",
         help="Optional dotenv file to check locally, e.g. .env",
     )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply Ruff auto-fixes locally (not intended for CI)",
+    )
     return parser.parse_args()
 
 
@@ -113,21 +118,19 @@ def main() -> int:
     if _is_github_actions():
         # Emit GitHub-native annotations in CI for quick navigation.
         ruff_check_cmd.extend(["--output-format", "github"])
+    if args.fix:
+        ruff_check_cmd.append("--fix")
 
     lint_exit = _run(ruff_check_cmd)
     if lint_exit != 0:
         return lint_exit
 
-    format_exit = _run(
-        [
-            "uv",
-            "run",
-            "ruff",
-            "format",
-            "--check",
-            ".",
-        ]
-    )
+    format_cmd = ["uv", "run", "ruff", "format"]
+    if not args.fix:
+        format_cmd.append("--check")
+    format_cmd.append(".")
+
+    format_exit = _run(format_cmd)
     if format_exit != 0:
         return format_exit
 

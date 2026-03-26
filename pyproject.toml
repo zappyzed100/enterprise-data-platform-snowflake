@@ -40,7 +40,7 @@ line-length = 127
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "UP"]
 
 [tool.ruff.lint.isort]
 combine-as-imports = true
