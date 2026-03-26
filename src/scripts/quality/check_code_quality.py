@@ -1,4 +1,5 @@
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +23,10 @@ def _run(command: list[str]) -> int:
     print("[check]", " ".join(command))
     completed = subprocess.run(command, cwd=REPO_ROOT, check=False)
     return completed.returncode
+
+
+def _is_github_actions() -> bool:
+    return os.getenv("GITHUB_ACTIONS", "").lower() == "true"
 
 
 def _iter_tracked_text_files() -> list[Path]:
@@ -104,15 +109,12 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
 
-    lint_exit = _run(
-        [
-            "uv",
-            "run",
-            "ruff",
-            "check",
-            ".",
-        ]
-    )
+    ruff_check_cmd = ["uv", "run", "ruff", "check", "."]
+    if _is_github_actions():
+        # Emit GitHub-native annotations in CI for quick navigation.
+        ruff_check_cmd.extend(["--output-format", "github"])
+
+    lint_exit = _run(ruff_check_cmd)
     if lint_exit != 0:
         return lint_exit
 
