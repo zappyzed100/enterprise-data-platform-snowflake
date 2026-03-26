@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Load APP_ENV from .env when APP_ENV is not explicitly provided.
+if [[ -z "${APP_ENV:-}" && -f "${PROJECT_ROOT}/.env" ]]; then
+  app_env_from_file="$({ sed 's/\r$//' "${PROJECT_ROOT}/.env" | grep -E '^[[:space:]]*APP_ENV[[:space:]]*=' | tail -n 1 || true; } | sed -E 's/^[[:space:]]*APP_ENV[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//' | tr -d '"' | tr -d "'")"
+  if [[ -n "${app_env_from_file}" ]]; then
+    APP_ENV="${app_env_from_file}"
+  fi
+fi
+
+# Load Terraform settings from .env
+load_terraform_config() {
+  local env_file="${PROJECT_ROOT}/.env"
+  if [[ ! -f "${env_file}" ]]; then
+    return
+  fi
+  
+  local hcp_org="$(sed 's/\r$//' "${env_file}" | grep -E '^[[:space:]]*HCP_TF_ORGANIZATION[[:space:]]*=' | tail -n 1 | sed -E 's/^[[:space:]]*HCP_TF_ORGANIZATION[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//' | tr -d '"' | tr -d "'" || true)"
+  if [[ -n "${hcp_org}" ]]; then
+    HCP_TF_ORGANIZATION="${hcp_org}"
+  fi
+  
+  local ws_dev="$(sed 's/\r$//' "${env_file}" | grep -E '^[[:space:]]*HCP_TF_WORKSPACE_DEV[[:space:]]*=' | tail -n 1 | sed -E 's/^[[:space:]]*HCP_TF_WORKSPACE_DEV[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//' | tr -d '"' | tr -d "'" || true)"
+  if [[ -n "${ws_dev}" ]]; then
+    HCP_TF_WORKSPACE_DEV="${ws_dev}"
+  fi
+  
+  local ws_prod="$(sed 's/\r$//' "${env_file}" | grep -E '^[[:space:]]*HCP_TF_WORKSPACE_PROD[[:space:]]*=' | tail -n 1 | sed -E 's/^[[:space:]]*HCP_TF_WORKSPACE_PROD[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//' | tr -d '"' | tr -d "'" || true)"
+  if [[ -n "${ws_prod}" ]]; then
+    HCP_TF_WORKSPACE_PROD="${ws_prod}"
+  fi
+}
+
+load_terraform_config
+
+APP_ENV_LOWER="${APP_ENV:-dev}"
+case "${APP_ENV_LOWER}" in
+  dev|prod)
+    ;;
+  *)
+    echo "[tf] APP_ENV must be 'dev' or 'prod' (current: ${APP_ENV_LOWER})" >&2
+    exit 1
+    ;;
+esac
+
+export TF_VAR_app_env="${APP_ENV_LOWER}"
+
+# For remote backend runs, force app_env via auto tfvars instead of -var.
+APP_ENV_AUTO_TFVARS="${SCRIPT_DIR}/99_app_env.auto.tfvars"
+printf 'app_env = "%s"\n' "${APP_ENV_LOWER}" > "${APP_ENV_AUTO_TFVARS}"
+
+# Remote backend settings (load from .env).
+HCP_TF_ORGANIZATION="${HCP_TF_ORGANIZATION:-zappyzed100}"
+case "${APP_ENV_LOWER}" in
+  dev)
+    HCP_TF_WORKSPACE="${HCP_TF_WORKSPACE_DEV:-dev-real-time-logistics-strategy-engine-distilled-mip-1m-01ms}"
+    ;;
+  prod)
+    HCP_TF_WORKSPACE="${HCP_TF_WORKSPACE_PROD:-prod-real-time-logistics-strategy-engine-distilled-mip-1m-01ms}"
+    ;;
+esac
+
+BACKEND_TMP_CONFIG="$(mktemp "${SCRIPT_DIR}/.backend.auto.XXXXXX.hcl")"
+cleanup() {
+  rm -f "${BACKEND_TMP_CONFIG}"
+}
+trap cleanup EXIT
+
+cat > "${BACKEND_TMP_CONFIG}" <<EOF
+organization = "${HCP_TF_ORGANIZATION}"
+workspaces {
+  name = "${HCP_TF_WORKSPACE}"
+}
+EOF
+
+ensure_init() {
+  terraform -chdir="${SCRIPT_DIR}" init \
+    -reconfigure \
+    -backend-config="${BACKEND_TMP_CONFIG}" >/dev/null
+}
+
+cmd="${1:-}"
+if [[ -z "${cmd}" ]]; then
+  echo "Usage: ./terraform/tf <init|plan|apply|...> [args...]" >&2
+  exit 1
+fi
+shift || true
+
+case "${cmd}" in
+  init)
+    terraform -chdir="${SCRIPT_DIR}" init \
+      -reconfigure \
+      -backend-config="${BACKEND_TMP_CONFIG}" "$@"
+    ;;
+  *)
+    ensure_init
+    terraform -chdir="${SCRIPT_DIR}" "${cmd}" "$@"
+    ;;
+esac

@@ -7,14 +7,18 @@ terraform {
     }
   }
 
-  # organization / workspaces は backend.hcl (gitignore対象) から注入する
+  # organization / workspace は terraform/tf ラッパーの init 時に注入する
   backend "remote" {}
 }
 
 locals {
-  snowflake_user_effective = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
-  snowflake_private_key_raw = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
+  snowflake_user_effective        = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
+  snowflake_private_key_raw       = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
   snowflake_private_key_effective = local.snowflake_private_key_raw != null ? replace(local.snowflake_private_key_raw, "\\n", "\n") : null
+  snowflake_authenticator_raw     = var.SNOWFLAKE_AUTHENTICATOR != null ? var.SNOWFLAKE_AUTHENTICATOR : "SNOWFLAKE_JWT"
+  snowflake_authenticator         = trimspace(replace(local.snowflake_authenticator_raw, "\r", ""))
+  # SNOWFLAKE_ROLE 未設定時は APP_ENV から自動選択（DEV_TF_ADMIN_ROLE / PROD_TF_ADMIN_ROLE）
+  snowflake_role = var.SNOWFLAKE_ROLE != null ? trimspace(replace(var.SNOWFLAKE_ROLE, "\r", "")) : "${upper(var.app_env)}_TF_ADMIN_ROLE"
 }
 
 provider "snowflake" {
@@ -22,7 +26,8 @@ provider "snowflake" {
   account_name      = var.snowflake_account_name
   user              = local.snowflake_user_effective
   private_key       = local.snowflake_private_key_effective
-  role              = "ACCOUNTADMIN"
+  authenticator     = local.snowflake_authenticator
+  role              = local.snowflake_role
 
   # プレビュー機能を有効化する設定を追加
   preview_features_enabled = [
