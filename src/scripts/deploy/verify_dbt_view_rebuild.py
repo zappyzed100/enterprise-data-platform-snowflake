@@ -8,9 +8,13 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from dotenv import load_dotenv
 
+from src.utils.env_policy import assert_prod_access_allowed
+
 
 def _target() -> str:
-    return (os.getenv("APP_ENV") or "dev").strip().lower() or "dev"
+    target = (os.getenv("APP_ENV") or "dev").strip().lower() or "dev"
+    assert_prod_access_allowed(target, "verify_dbt_view_rebuild")
+    return target
 
 
 def _suffix(target: str) -> str:

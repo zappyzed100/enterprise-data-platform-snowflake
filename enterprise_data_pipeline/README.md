@@ -43,9 +43,10 @@
 データロード (`src/infrastructure/snowflake_loader.py`) は別コンポーネントです。
 
 - `snowflake_loader.py` の実行コマンド自体は従来どおり
-- ただし接続先 Bronze は `.env` の `APP_ENV=dev / prod` で切り替わる
+- 接続先 Bronze は内部の環境切り替え設定で制御され、ローカルは dev、prod は CI 専用
 
-フルパイプラインを再現する場合は、先に `.env` の `APP_ENV` を意図した環境へ設定してください。
+フルパイプラインをローカル再現する場合は、開発環境（dev）で実行してください。
+prod 検証は CI からのみ実行します。
 
 ### 3.1 Python 依存関係
 

@@ -7,6 +7,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from src.utils.env_policy import assert_prod_access_allowed
+
 
 def _resolve_target(env: dict[str, str]) -> str:
     return env.get("APP_ENV", "dev").strip().lower() or "dev"
@@ -96,6 +98,7 @@ def main() -> int:
         env["APP_ENV"] = cli_target.strip().lower()
     else:
         env["APP_ENV"] = _resolve_target(env)
+    assert_prod_access_allowed(env["APP_ENV"], "run_dbt")
     env.setdefault("DBT_PROFILES_DIR", str(project_dir))
     temp_key_path = _write_private_key_file(env)
 

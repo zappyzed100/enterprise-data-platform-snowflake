@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
-import pydeck as pdk
+import pydeck as pdk  # type: ignore[import-untyped]
 from cryptography.hazmat.primitives.serialization import (
     Encoding,
     NoEncryption,
@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from snowflake.snowpark import Session
 
 import streamlit as st
+from src.utils.env_policy import assert_prod_access_allowed
 
 
 def _load_env_files() -> None:
@@ -32,9 +33,10 @@ def _required_env(name: str) -> str:
 
 
 def _target_env_prefix() -> str:
-    app_env = _required_env("APP_ENV").strip().lower()
+    app_env = (os.getenv("APP_ENV") or "dev").strip().lower() or "dev"
     if app_env not in {"dev", "prod"}:
         raise RuntimeError("環境変数 APP_ENV は dev または prod を指定してください")
+    assert_prod_access_allowed(app_env, "streamlit")
     return app_env.upper()
 
 
