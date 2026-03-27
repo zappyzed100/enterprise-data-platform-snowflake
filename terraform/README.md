@@ -384,7 +384,78 @@ CI/CD ワークフローで使用する秘密情報は、GitHub Repository Secre
 - CI では `APP_ENV=prod ./terraform/tf plan` / `apply` の形式を利用できます。
 - ラッパーを使わずに `terraform` コマンドを直接実行する運用は推奨しません。
 
-## 2.2. 復旧手順（運用者向け Runbook）
+## 2.2. データパイプライン CD オーケストレーション（Loader + dbt）
+
+Prod Terraform apply 成功後、自動的に snowflake_loader と dbt を実行する本番デプロイフローです。
+
+**実行条件:**
+- Terraform apply ジョブが成功した場合のみ実行
+- `main` ブランチへのpush 時のみ実行
+- すべてのジョブが同じ GitHub Environment `prod` の approval 配下で実行
+
+**パイプライン構成:**
+
+```
+[terraform-prod-apply: PASS]
+    ↓
+[prod-loader-run: RUNNING → PASS (データロード)]
+    ↓
+[prod-dbt-run: RUNNING → PASS (変換・処理)]
+    ↓
+[prod-dbt-test: RUNNING → PASS (品質検証)]
+    ↓
+[COMPLETE]
+```
+
+### prod-loader-run ジョブ
+
+**目的:** 新規データを Bronze 層へロード
+
+**実行コマンド:**
+```bash
+APP_ENV=prod python src/infrastructure/snowflake_loader.py
+```
+
+**出力:**
+- `artifacts/data-pipeline/prod-loader.log` — ロード実行ログ
+
+**依存関係:** `needs: [terraform-prod-apply]`
+
+### prod-dbt-run ジョブ
+
+**目的:** dbt を実行して Silver/Gold 層のモデルを構築
+
+**実行コマンド:**
+```bash
+APP_ENV=prod dbt run
+```
+
+**出力:**
+- `artifacts/data-pipeline/prod-dbt-run.log` — dbt run ログ
+- `enterprise_data_pipeline/target/run_results.json` — 実行結果メタデータ
+
+**依存関係:** `needs: [prod-loader-run]`
+
+### prod-dbt-test ジョブ
+
+**目的:** dbt test を実行してデータ品質を検証
+
+**実行コマンド:**
+```bash
+APP_ENV=prod dbt test
+```
+
+**出力:**
+- `artifacts/data-pipeline/prod-dbt-test.log` — dbt test ログ
+- `enterprise_data_pipeline/target/run_results.json` — テスト結果メタデータ
+
+**依存関係:** `needs: [prod-dbt-run]`
+
+**実行ログの確認:**
+- GitHub Actions > 対象 run > 各ジョブのログタブ
+- または Run summary の Artifacts セクションからダウンロード
+
+## 2.3. 復旧手順（運用者向け Runbook）
 
 prod apply が失敗した場合、次の順で切り分けて復旧してください。
 
@@ -410,6 +481,65 @@ prod apply が失敗した場合、次の順で切り分けて復旧してくだ
 - 原則としてローカルから prod 変更は行わない
 - 例外対応は Issue を起票し、実施者・理由・実行コマンド・結果を記録する
 - 事後に CI 経路へ設定を戻し、Secrets と権限の棚卸しを実施する
+
+## 2.4. トラブルシューティング（データパイプライン CD）
+
+Loader / dbt ジョブが失敗した場合の切り分け手順です。
+
+### prod-loader-run が失敗した場合
+
+**確認項目:**
+1. Actions ログで「Run prod snowflake loader」ステップを確認
+   - Snowflake 接続エラー → セクション 1.8 で `PROD_LOADER_USER_RSA_PRIVATE_KEY` を再確認
+   - データ形式エラー → `data/` ディレクトリのファイル形式を検証
+   - 権限エラー → `PROD_LOADER_ROLE` の Snowflake 権限を確認
+
+2. `prod-loader.log` artifact をダウンロード → 具体的なエラー行を特定
+
+**再実行:**
+- ローカル検証: `APP_ENV=prod python src/infrastructure/snowflake_loader.py`
+- 修正後、main へ PR/merge しなおして CI 再実行
+
+### prod-dbt-run が失敗した場合
+
+**確認項目:**
+1. Actions ログで「Run prod dbt run」ステップを確認
+   - コンパイルエラー → dbt yamlの構文を確認（`enterprise_data_pipeline/`）
+   - Snowflake 権限エラー → `PROD_DBT_ROLE` の Schema/Table 権限を確認
+   - 依存関係エラー → dbt DAG で参照モデルが存在するか確認
+
+2. `prod-dbt-run.log` と `run_results.json` を確認
+
+**再実行:**
+- ローカル検証: `APP_ENV=prod dbt run`
+- 修正後、main へ PR/merge しなおして CI 再実行
+
+### prod-dbt-test が失敗した場合
+
+**確認項目:**
+1. Actions ログで「Run prod dbt test」ステップを確認
+   - テスト失敗 → `enterprise_data_pipeline/tests/` の要件を確認
+   - depending_on テスト失敗 → upstream モデルのデータ品質を見直す
+
+2. `prod-dbt-test.log` で fail した spec を確認
+
+**対応:**
+- テスト要件を見直す（厳しすぎないか確認）
+- または upstream モデルのロジックを修正
+- 修正後、main へ PR/merge しなおして CI 再実行
+
+### いずれかのジョブが失敗した場合
+
+**自動的に後続ステップは実行されません（needs 依存により）**
+
+失敗ジョブが fixed された後は、**再度本番環境から再実行**するために:
+
+1. GitHub で最新の main commit を確認
+2. Actions tab で対象 run を確認
+3. ジョブが pending 状態なら approval を与えているか確認
+4. 不要なら `Re-run failed jobs` ボタンで再実行
+
+**注意:** 本番ロール・Snowflake オブジェクトの状態によっては、rebuild や recreate が必要な場合があります。Issue を起票して運用チームに相談してください。
 
 ## 3. 設計判断（ADR）
 
