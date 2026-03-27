@@ -160,9 +160,23 @@ load_terraform_config() {
   if [[ -n "${ws_prod}" ]]; then
     HCP_TF_WORKSPACE_PROD="${ws_prod}"
   fi
+
+  # Prefer explicit Terraform CLI token key, then compatibility aliases.
+  local tf_token="$(read_env_value "TF_TOKEN_app_terraform_io")"
+  if [[ -z "${tf_token}" ]]; then
+    tf_token="$(read_env_value "HCP_TERRAFORM_TOKEN")"
+  fi
+  if [[ -z "${tf_token}" ]]; then
+    tf_token="$(read_env_value "HCP_TF_TEAM_API_TOKEN")"
+  fi
+  if [[ -n "${tf_token}" ]]; then
+    export TF_TOKEN_app_terraform_io="${tf_token}"
+  fi
 }
 
 load_terraform_config
+
+require_env_value "TF_TOKEN_app_terraform_io (or HCP_TERRAFORM_TOKEN / HCP_TF_TEAM_API_TOKEN)" "${TF_TOKEN_app_terraform_io:-}"
 
 APP_ENV_LOWER="${APP_ENV}"
 case "${APP_ENV_LOWER}" in
