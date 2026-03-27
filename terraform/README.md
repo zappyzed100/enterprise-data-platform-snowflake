@@ -123,9 +123,19 @@ PROD_TF_ADMIN_ROLE=PROD_TF_ADMIN_ROLE
 
 ## 基本方針
 
-- 実行環境切り替え: `/app/.env` の `APP_ENV`（`dev` / `prod`）を書き換えるだけで切り替える
+- `APP_ENV` は権限ではなく行き先スイッチとして扱う
+- ローカル実行は `APP_ENV` 未指定時に `dev` として実行
+- `APP_ENV=prod` は CI 実行（`CI=true` または `GITHUB_ACTIONS=true`）でのみ許可
 - 実行コマンド: 原則 `./terraform/tf` ラッパーを使用する
 - 変数管理: 共通の非機密設定は `.env.shared`、機密情報とローカル差分は `.env`、HCP 側の機密値は Workspace Variables で管理する
+
+多層防御（必須）:
+
+- 実行経路制御: prod 実行は CI のみ
+- 資格情報制御: prod 秘密鍵はローカルに配布しない
+- 権限制御: prod ロールは最小権限、開発者ロールは prod 不可
+- 環境保護: CI の Environment 保護（承認必須・main 限定）
+- 監査: prod 実行は CI ログで追跡可能にする
 
 ## 1. 実行手順
 
@@ -140,7 +150,7 @@ Docker コンテナ内で実行する場合も、初回は `terraform login` に
 - `init -reconfigure` の自動実行
 
 ```bash
-# /app/.env の APP_ENV を dev / prod に書き換えてから実行
+# ローカルは APP_ENV 未指定でも dev として実行
 ./terraform/tf plan
 
 # apply も同様
@@ -155,7 +165,7 @@ Docker コンテナ内で実行する場合も、初回は `terraform login` に
 
 補足:
 
-- `APP_ENV` をコマンド実行時に一時上書きしたい場合は `APP_ENV=prod ./terraform/tf plan` の形式も利用できます。
+- CI では `APP_ENV=prod ./terraform/tf plan` / `apply` の形式を利用できます。
 - ラッパーを使わずに `terraform` コマンドを直接実行する運用は推奨しません。
 
 ## 2. 設計判断（ADR）

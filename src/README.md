@@ -29,17 +29,17 @@ uv run python src/scripts/data_gen/generate_large_data.py -n 10000
 ### 2.2 Bronze へロード
 
 ```bash
-# .env の APP_ENV=dev / prod を切り替えてから実行
+# ローカルは開発環境（dev）固定（prod は CI 専用）
 uv run python src/infrastructure/snowflake_loader.py
 ```
 
 必要な主な環境変数 (`.env`)。
 
-- `APP_ENV`
 - `SNOWFLAKE_ACCOUNT`
 - `SNOWFLAKE_LOADER_PRIVATE_KEY` または `DEV_LOADER_USER_RSA_PRIVATE_KEY`
 
-`src/infrastructure/snowflake_loader.py` は `APP_ENV` を参照して接続先を切り替えます。
+`src/infrastructure/snowflake_loader.py` はローカルでは開発環境（dev）を利用します。
+本番環境（prod）の実行は CI でのみ許可されます。
 
 ### 2.3 dbt 実行
 
@@ -57,20 +57,16 @@ uv run streamlit run src/streamlit/app.py
 
 ## 3. Streamlit の設定
 
-`src/streamlit/app.py` は `.env` ではなく `st.secrets["connections"]["snowpark"]` を参照します。
+`src/streamlit/app.py` は `.env.shared` と `.env` を読み込み、ローカルでは開発環境（dev）で接続します。
 
-`.streamlit/secrets.toml` 例。
+主な環境変数。
 
-```toml
-[connections.snowpark]
-account = "your-account"
-user = "your-user"
-password = "your-password"
-role = "DEV_DBT_ROLE"
-warehouse = "DEV_DBT_WH"
-database = "DEV_GOLD_DB"
-schema = "MARKETING_MART"
-```
+- `SNOWFLAKE_ACCOUNT`
+- `DEV_STREAMLIT_USER` / `PROD_STREAMLIT_USER`
+- `DEV_STREAMLIT_ROLE` / `PROD_STREAMLIT_ROLE`
+- `DEV_STREAMLIT_WH` / `PROD_STREAMLIT_WH`
+- `DEV_GOLD_DB` / `PROD_GOLD_DB`
+- `STREAMLIT_ANALYSIS_TABLE`
 
 ## 4. ファイル別の役割
 

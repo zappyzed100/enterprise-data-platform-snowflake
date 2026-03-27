@@ -34,6 +34,12 @@ cp .env.example .env
 # SNOWFLAKE_ACCOUNT や各種 Private Key を設定
 ```
 
+補足:
+
+- ローカル実行は開発環境（dev）固定です
+- 本番環境（prod）への実行は CI からのみ許可されます
+- 環境切り替えの内部実装は運用者向けドキュメントで管理します
+
 - Streamlit Secrets（`.streamlit/secrets.toml`）: 
 
 ```toml
@@ -76,9 +82,14 @@ HCP_TF_WORKSPACE_PROD=prod-real-time-logistics-strategy-engine-distilled-mip-1m-
 実行方法：
 
 ```bash
-# .env の APP_ENV に応じて DEV / PROD を自動判定して適用
+# ローカル実行は常に dev として適用
 ./terraform/tf apply
 ```
+
+運用制約:
+
+- ローカル実行は常に開発環境（dev）
+- 本番環境（prod）への実行は CI のみ許可
 
 ## 4. データパイプラインと蒸留プロセス
 
@@ -87,13 +98,13 @@ HCP_TF_WORKSPACE_PROD=prod-real-time-logistics-strategy-engine-distilled-mip-1m-
 ### 4.1. データ生成とロード
 
 ```bash
-# .env の APP_ENV=dev / prod を切り替えてから実行
+# ローカルでは常に dev として実行（prod は CI 専用）
 docker compose run --rm streamlit python src/scripts/data_gen/generate_large_data.py -n 1000000
 docker compose run --rm streamlit python src/infrastructure/snowflake_loader.py
 ```
 
-`src/infrastructure/snowflake_loader.py` は `.env` の `APP_ENV` を参照して、
-DEV / PROD の Bronze 接続先を切り替えます。
+`src/infrastructure/snowflake_loader.py` はローカルでは開発環境（dev）として実行されます。
+本番環境（prod）での実行は CI のみ許可されます。
 
 ### 4.2. dbt による特徴量エンジニアリング
 

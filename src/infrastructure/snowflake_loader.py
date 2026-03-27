@@ -7,6 +7,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from dotenv import load_dotenv
 
+from src.utils.env_policy import assert_prod_access_allowed
+
 
 def _load_env_files() -> None:
     repo_root = Path(__file__).resolve().parents[2]
@@ -51,6 +53,7 @@ class SnowflakeLoader:
         app_env = (os.getenv("APP_ENV") or "dev").strip().lower() or "dev"
         if app_env not in {"dev", "prod"}:
             raise ValueError(f"APP_ENV must be 'dev' or 'prod' (current: {app_env})")
+        assert_prod_access_allowed(app_env, "snowflake_loader")
         return app_env.upper()
 
     def _require_env(self, key: str) -> str:
