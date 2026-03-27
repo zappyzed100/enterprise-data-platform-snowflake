@@ -168,7 +168,7 @@ jobs:
   terraform-prod-apply:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     environment: prod
     needs: [lint-and-test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
