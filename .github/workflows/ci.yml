@@ -224,3 +224,131 @@ jobs:
             commit_sha: context.sha,
             body: `${summary}\n\n[View artifacts](${context.payload.pull_request?.html_url || context.ref})`
           });
+
+  prod-loader-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: prod
+    needs: [terraform-prod-apply]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        version: "latest"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --frozen --all-groups
+
+    - name: Run prod snowflake loader
+      env:
+        APP_ENV: prod
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        PROD_LOADER_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_LOADER_USER_RSA_PRIVATE_KEY }}
+      run: |
+        mkdir -p artifacts/data-pipeline
+        uv run python src/infrastructure/snowflake_loader.py | tee artifacts/data-pipeline/prod-loader.log
+
+    - name: Save loader artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: prod-loader-${{ github.run_id }}
+        path: artifacts/data-pipeline/prod-loader.log
+        if-no-files-found: warn
+
+  prod-dbt-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: prod
+    needs: [prod-loader-run]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        version: "latest"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --frozen --all-groups
+
+    - name: Run prod dbt run
+      env:
+        APP_ENV: prod
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PROD: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      run: |
+        mkdir -p artifacts/data-pipeline
+        uv run python src/scripts/deploy/run_dbt.py run | tee artifacts/data-pipeline/prod-dbt-run.log
+
+    - name: Save dbt run artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: prod-dbt-run-${{ github.run_id }}
+        path: |
+          artifacts/data-pipeline/prod-dbt-run.log
+          enterprise_data_pipeline/target/run_results.json
+        if-no-files-found: warn
+
+  prod-dbt-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: prod
+    needs: [prod-dbt-run]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        version: "latest"
+
+    - name: Set up Python 3.11
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: uv sync --frozen --all-groups
+
+    - name: Run prod dbt test
+      env:
+        APP_ENV: prod
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PROD: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
+        SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
+      run: |
+        mkdir -p artifacts/data-pipeline
+        uv run python src/scripts/deploy/run_dbt.py test | tee artifacts/data-pipeline/prod-dbt-test.log
+
+    - name: Save dbt test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: prod-dbt-test-${{ github.run_id }}
+        path: |
+          artifacts/data-pipeline/prod-dbt-test.log
+          enterprise_data_pipeline/target/run_results.json
+        if-no-files-found: warn
