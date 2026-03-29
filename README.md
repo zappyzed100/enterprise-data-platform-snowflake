@@ -29,7 +29,7 @@
 
 プロジェクトルートに以下の設定ファイルを作成してください。
 
-- 環境変数（`.env`）: `src` 配下のスクリプト、dbt、Loader で使用
+- 環境変数（`.env`）: `src` 配下のスクリプト、dbt、Loader、Streamlit で使用
 
 ```bash
 cp .env.example .env
@@ -41,19 +41,8 @@ cp .env.example .env
 - ローカル実行は開発環境（dev）固定です
 - 本番環境（prod）への実行は CI からのみ許可されます
 - 環境切り替えの内部実装は運用者向けドキュメントで管理します
-
-- Streamlit Secrets（`.streamlit/secrets.toml`）:
-
-```toml
-[connections.snowpark]
-account = "..."
-user = "..."
-password = "..."
-role = "..."
-warehouse = "..."
-database = "..."
-schema = "..."
-```
+- Streamlit 接続も `.env` / `.env.shared` の環境変数 + RSA 鍵のみを使用します
+- `.streamlit/secrets.toml` は使用しません
 
 ### 2.2. サービスの起動
 
