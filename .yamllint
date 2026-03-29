@@ -8,7 +8,3 @@ rules:
   document-start: disable
   line-length: disable
   truthy: disable
-  brackets: disable
-  indentation: disable
-  empty-lines: disable
-  new-line-at-end-of-file: disable
