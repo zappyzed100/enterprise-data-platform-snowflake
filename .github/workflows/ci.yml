@@ -14,33 +14,103 @@ on:
         default: true
 
 jobs:
-  lint-and-test:
+  lint:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-    - name: Checkout code
+    - &checkout_step
+      name: Checkout code
       uses: actions/checkout@v6
 
-    - name: Install uv
+    - &install_uv_step
+      name: Install uv
       uses: astral-sh/setup-uv@v7
       with:
         # キャッシュを有効にして実行速度を向上
         enable-cache: true
         version: "latest"
 
-    - name: Set up Python 3.11
+    - &setup_python_step
+      name: Set up Python 3.11
       run: uv python install 3.11
 
-    - name: Install dependencies
+    - &install_dependencies_step
+      name: Install dependencies
       # uv sync で pyproject.toml / uv.lock から環境を完全再現
       run: uv sync --frozen --all-groups
+
+    - name: Install non-Python lint tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends shellcheck
+        npm install -g markdownlint-cli2
+
+        HADOLINT_VERSION=v2.12.0
+        curl -sSL -o hadolint "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+        chmod +x hadolint
+        sudo mv hadolint /usr/local/bin/hadolint
+
+        TAPLO_VERSION=0.9.3
+        curl -sSL "https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION}/taplo-linux-x86_64.gz" \
+          | gzip -d > taplo
+        chmod +x taplo
+        sudo mv taplo /usr/local/bin/taplo
 
     - name: Run code quality checks
       # Ruff と CR 混入チェックをまとめて実行する。
       # .env は Git 管理外だが、ローカルに存在する場合はスクリプト側で確認する。
       run: |
         uv run python src/scripts/quality/check_code_quality.py
+
+    - name: Run YAML lint
+      run: |
+        uv run --with yamllint yamllint .
+
+    - name: Run shell lint
+      run: |
+        shellcheck terraform/tf
+
+    - name: Run markdown lint
+      run: |
+        markdownlint-cli2 "**/*.md" "#enterprise_data_pipeline/target/**"
+
+    - name: Run Dockerfile lint
+      run: |
+        hadolint Dockerfile
+
+    - name: Run TOML lint
+      run: |
+        taplo format --check pyproject.toml
+
+    - &setup_terraform_step
+      name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Run Terraform lint
+      run: |
+        terraform -chdir=terraform fmt -check -recursive
+        terraform -chdir=terraform init -backend=false
+        terraform -chdir=terraform validate
+
+        TFLINT_VERSION=v0.54.0
+        curl -sSL -o tflint.zip "https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}/tflint_linux_amd64.zip"
+        unzip -q tflint.zip
+        chmod +x tflint
+        sudo mv tflint /usr/local/bin/tflint
+        rm -f tflint.zip
+
+        tflint --chdir=terraform
+
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Test with pytest
       # src/connection_test.py が pytest の収集対象になりエラーを吐くのを防ぐため、
@@ -57,20 +127,10 @@ jobs:
       matrix:
         app_env: [dev, prod]
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        version: "latest"
-
-    - name: Set up Python 3.11
-      run: uv python install 3.11
-
-    - name: Install dependencies
-      run: uv sync --frozen --all-groups
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Show app env
       env:
@@ -95,20 +155,10 @@ jobs:
     permissions:
       contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        version: "latest"
-
-    - name: Set up Python 3.11
-      run: uv python install 3.11
-
-    - name: Install dependencies
-      run: uv sync --frozen --all-groups
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Verify dbt rebuild on dev
       env:
@@ -128,11 +178,8 @@ jobs:
       github.event_name == 'pull_request' ||
       (github.event_name == 'workflow_dispatch' && inputs.run_prod_plan)
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
+    - *checkout_step
+    - *setup_terraform_step
 
     - name: Prepare env for terraform wrapper
       env:
@@ -170,14 +217,11 @@ jobs:
     permissions:
       contents: write
     environment: prod
-    needs: [lint-and-test]
+    needs: [lint, test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
+    - *checkout_step
+    - *setup_terraform_step
 
     - name: Prepare env for terraform wrapper
       env:
@@ -233,20 +277,10 @@ jobs:
     needs: [terraform-prod-apply]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        version: "latest"
-
-    - name: Set up Python 3.11
-      run: uv python install 3.11
-
-    - name: Install dependencies
-      run: uv sync --frozen --all-groups
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Run prod snowflake loader
       env:
@@ -273,20 +307,10 @@ jobs:
     needs: [prod-loader-run]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        version: "latest"
-
-    - name: Set up Python 3.11
-      run: uv python install 3.11
-
-    - name: Install dependencies
-      run: uv sync --frozen --all-groups
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Run prod dbt run
       env:
@@ -317,20 +341,10 @@ jobs:
     needs: [prod-dbt-run]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        version: "latest"
-
-    - name: Set up Python 3.11
-      run: uv python install 3.11
-
-    - name: Install dependencies
-      run: uv sync --frozen --all-groups
+    - *checkout_step
+    - *install_uv_step
+    - *setup_python_step
+    - *install_dependencies_step
 
     - name: Run prod dbt test
       env:
