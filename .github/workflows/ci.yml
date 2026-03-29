@@ -15,9 +15,42 @@ on:
 
 jobs:
   lint:
+    name: lint-${{ matrix.check }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check: python
+            install_uv: true
+            setup_python: true
+            install_dependencies: true
+          - check: yaml
+            install_uv: true
+            setup_python: false
+            install_dependencies: false
+          - check: shell
+            install_uv: false
+            setup_python: false
+            install_dependencies: false
+          - check: markdown
+            install_uv: false
+            setup_python: false
+            install_dependencies: false
+          - check: docker
+            install_uv: false
+            setup_python: false
+            install_dependencies: false
+          - check: toml
+            install_uv: false
+            setup_python: false
+            install_dependencies: false
+          - check: terraform
+            install_uv: false
+            setup_python: false
+            install_dependencies: false
     steps:
     - &checkout_step
       name: Checkout code
@@ -40,59 +73,54 @@ jobs:
       # uv sync で pyproject.toml / uv.lock から環境を完全再現
       run: uv sync --frozen --all-groups
 
-    - name: Install non-Python lint tools
+    - <<: *install_uv_step
+      if: matrix.install_uv
+
+    - <<: *setup_python_step
+      if: matrix.setup_python
+
+    - <<: *install_dependencies_step
+      if: matrix.install_dependencies
+
+    - name: Setup Terraform
+      if: matrix.check == 'terraform'
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Install shellcheck
+      if: matrix.check == 'shell'
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends shellcheck
+
+    - name: Install markdownlint-cli2
+      if: matrix.check == 'markdown'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends nodejs npm
         npm install -g markdownlint-cli2
 
+    - name: Install hadolint
+      if: matrix.check == 'docker'
+      run: |
         HADOLINT_VERSION=v2.12.0
         curl -sSL -o hadolint "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
         chmod +x hadolint
         sudo mv hadolint /usr/local/bin/hadolint
 
+    - name: Install taplo
+      if: matrix.check == 'toml'
+      run: |
         TAPLO_VERSION=0.9.3
         curl -sSL "https://github.com/tamasfe/taplo/releases/download/${TAPLO_VERSION}/taplo-linux-x86_64.gz" \
           | gzip -d > taplo
         chmod +x taplo
         sudo mv taplo /usr/local/bin/taplo
 
-    - name: Run code quality checks
-      # Ruff と CR 混入チェックをまとめて実行する。
-      # .env は Git 管理外だが、ローカルに存在する場合はスクリプト側で確認する。
+    - name: Install tflint
+      if: matrix.check == 'terraform'
       run: |
-        uv run python src/scripts/quality/check_code_quality.py
-
-    - name: Run YAML lint
-      run: |
-        git ls-files '*.yml' '*.yaml' | xargs -r uv run --with yamllint yamllint -c .yamllint
-
-    - name: Run shell lint
-      run: |
-        shellcheck terraform/tf
-
-    - name: Run markdown lint
-      run: |
-        markdownlint-cli2 "**/*.md" "#enterprise_data_pipeline/target/**"
-
-    - name: Run Dockerfile lint
-      run: |
-        hadolint Dockerfile
-
-    - name: Run TOML lint
-      run: |
-        taplo format --check pyproject.toml
-
-    - &setup_terraform_step
-      name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-
-    - name: Run Terraform lint
-      run: |
-        terraform -chdir=terraform fmt -check -recursive
-        terraform -chdir=terraform init -backend=false
-        terraform -chdir=terraform validate
-
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends unzip
         TFLINT_VERSION=v0.54.0
         curl -sSL -o tflint.zip "https://github.com/terraform-linters/tflint/releases/download/${TFLINT_VERSION}/tflint_linux_amd64.zip"
         unzip -q tflint.zip
@@ -100,7 +128,10 @@ jobs:
         sudo mv tflint /usr/local/bin/tflint
         rm -f tflint.zip
 
-        tflint --chdir=terraform
+    - name: Run lint check
+      # check_code_quality.py はローカルでは直列実行、CIでは matrix で並列実行する。
+      run: |
+        python3 src/scripts/quality/check_code_quality.py --only ${{ matrix.check }}
 
   test:
     runs-on: ubuntu-latest
@@ -179,7 +210,8 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.run_prod_plan)
     steps:
     - *checkout_step
-    - *setup_terraform_step
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
     - name: Prepare env for terraform wrapper
       env:
@@ -221,7 +253,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
     - *checkout_step
-    - *setup_terraform_step
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
     - name: Prepare env for terraform wrapper
       env:
