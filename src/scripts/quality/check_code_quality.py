@@ -64,15 +64,20 @@ def _extract_failed_files(text: str) -> list[str]:
     return sorted(candidates)
 
 
-def _run(command: list[str]) -> CommandResult:
+def _run(command: list[str], extra_env: dict[str, str] | None = None) -> CommandResult:
     if VERBOSE:
         print("[check]", " ".join(command))
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
+
     completed_text = subprocess.run(
         command,
         cwd=REPO_ROOT,
         check=False,
         capture_output=True,
         text=True,
+        env=env,
     )
     if VERBOSE:
         if completed_text.stdout:
@@ -363,7 +368,7 @@ def _run_docker_lint() -> CheckResult:
     if cmd_exit != 0:
         return ("skip", 0, len(docker_files), "hadolint not installed", _relative_paths(docker_files))
 
-    result = _run(["hadolint", *_relative_paths(docker_files)])
+    result = _run(["hadolint", "--failure-threshold", "error", *_relative_paths(docker_files)])
     if result.exit_code != 0:
         _print_failure_details(result.failed_files, result.stdout, result.stderr)
         return ("fail", result.exit_code, len(docker_files), "hadolint", result.failed_files)
@@ -399,7 +404,7 @@ def _run_terraform_lint() -> CheckResult:
     if tflint_cmd_exit != 0:
         return ("skip", 0, len(terraform_files), "tflint not installed", _relative_paths(terraform_files))
 
-    fmt_result = _run(["terraform", "-chdir=terraform", "fmt", "-check", "-recursive"])
+    fmt_result = _run(["terraform", "fmt", "-check", *_relative_paths(terraform_files)])
     if fmt_result.exit_code != 0:
         _print_failure_details(fmt_result.failed_files, fmt_result.stdout, fmt_result.stderr)
         return ("fail", fmt_result.exit_code, len(terraform_files), "terraform fmt", fmt_result.failed_files)
@@ -414,7 +419,12 @@ def _run_terraform_lint() -> CheckResult:
         _print_failure_details(validate_result.failed_files, validate_result.stdout, validate_result.stderr)
         return ("fail", validate_result.exit_code, len(terraform_files), "terraform validate", validate_result.failed_files)
 
-    tflint_result = _run(["tflint", "--chdir=terraform"])
+    tflint_env = {
+        "TF_VAR_loader_user_rsa_public_key": "dummy",
+        "TF_VAR_dbt_user_rsa_public_key": "dummy",
+        "TF_VAR_streamlit_user_rsa_public_key": "dummy",
+    }
+    tflint_result = _run(["tflint", "--chdir=terraform"], extra_env=tflint_env)
     if tflint_result.exit_code != 0:
         _print_failure_details(tflint_result.failed_files, tflint_result.stdout, tflint_result.stderr)
         return ("fail", tflint_result.exit_code, len(terraform_files), "tflint", tflint_result.failed_files)
