@@ -16,7 +16,6 @@ creds.json
 
 # Streamlit
 .streamlit/*
-!.streamlit/secrets.toml.example
 
 # Terraform の一時ディレクトリとプラグイン
 **/.terraform/
@@ -30,9 +29,8 @@ creds.json
 *.tfvars.json
 
 # Terraform の実行時生成ファイル
+terraform/98_runtime.auto.tfvars
 terraform/99_app_env.auto.tfvars
-terraform/.backend.auto.*.hcl
-
 
 # ログファイル
 crash.log
