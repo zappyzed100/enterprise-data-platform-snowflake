@@ -43,15 +43,13 @@ flowchart TB
     HCP_WS --> SILVER
     HCP_WS --> GOLD
 
-    subgraph LocalFlow[Local Development Supplement]
-        LOCAL_DATA[Local CSV]
-        LOCAL_LOADER[Local loader run]
-        LOCAL_DBT[Manual dbt run\nsame repo code]
-        LOCAL_APP[Docker Compose app]
-    end
+    LOCAL_DATA[Local CSV]
+    LOCAL_LOADER[Local loader run]
+    LOCAL_DBT["Manual dbt run (local)\nsame repo code"]
+    LOCAL_APP["Docker Compose app (local)"]
 
     LOCAL_DATA -.-> LOCAL_LOADER
-    LOCAL_LOADER -. PUT and COPY .-> INTERNAL_STAGE
-    BRONZE -.-> LOCAL_DBT
-    LOCAL_DBT -.-> SILVER
-    LOCAL_APP -. query .-> GOLD
+    LOCAL_LOADER -. X      .-> INTERNAL_STAGE
+    BRONZE -. X .-> LOCAL_DBT
+    LOCAL_DBT -. X .-> SILVER
+    LOCAL_APP -. X .-> GOLD
