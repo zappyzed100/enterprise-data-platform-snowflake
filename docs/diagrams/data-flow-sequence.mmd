@@ -1,0 +1,17 @@
+sequenceDiagram
+    participant Src as Source CSV
+    participant Loader as snowflake_loader.py
+    participant Stage as Snowflake Internal Stage
+    participant Bronze as Bronze RAW_DATA
+    participant dbt as run_dbt.py and dbt
+    participant Silver as Silver CLEANSED
+    participant Gold as Gold MARKETING_MART
+    participant UI as Streamlit App
+
+    Src->>Loader: local file read
+    Loader->>Stage: PUT
+    Loader->>Bronze: COPY INTO
+    Bronze->>dbt: source read
+    dbt->>Silver: staging and intermediate models
+    dbt->>Gold: marts models
+    UI->>Gold: query and visualize
