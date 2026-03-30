@@ -1,0 +1,57 @@
+flowchart TB
+    subgraph ChangeFlow[Change and Control Flow]
+        DEV_USER[Developer]
+        PR[Pull Request]
+        REPO[Repository main]
+        CI[GitHub Actions CI]
+
+        DEV_USER --> PR
+        PR --> REPO
+        REPO --> CI
+    end
+
+    subgraph InfraFlow[Infrastructure Provisioning]
+        TF_RUN[terraform plan/apply]
+        HCP_WS[HCP Terraform\nWorkspace dev/prod]
+
+        CI --> TF_RUN
+        TF_RUN --> HCP_WS
+    end
+
+    subgraph DataFlow[Production Data and Serving Flow]
+        PROD_DATA[External or pre-positioned CSV input\nnot yet fully automated]
+        PROD_LOADER[CI loader job\nsnowflake_loader.py]
+        INTERNAL_STAGE[Snowflake Internal Stage\nRAW_STAGE]
+        BRONZE[Bronze RAW_DATA]
+        PROD_DBT[CI dbt job\nrun_dbt.py\nrepo-managed code]
+        SILVER[Silver CLEANSED]
+        GOLD[Gold MARKETING_MART]
+        STREAMLIT[Streamlit App]
+
+        CI --> PROD_LOADER
+        PROD_DATA --> PROD_LOADER
+        PROD_LOADER --> INTERNAL_STAGE
+        INTERNAL_STAGE --> BRONZE
+        BRONZE --> PROD_DBT
+        PROD_DBT --> SILVER
+        SILVER --> GOLD
+        STREAMLIT --> GOLD
+    end
+
+    HCP_WS --> INTERNAL_STAGE
+    HCP_WS --> BRONZE
+    HCP_WS --> SILVER
+    HCP_WS --> GOLD
+
+    subgraph LocalFlow[Local Development Supplement]
+        LOCAL_DATA[Local CSV]
+        LOCAL_LOADER[Local loader run]
+        LOCAL_DBT[Manual dbt run\nsame repo code]
+        LOCAL_APP[Docker Compose app]
+    end
+
+    LOCAL_DATA -.-> LOCAL_LOADER
+    LOCAL_LOADER -. PUT and COPY .-> INTERNAL_STAGE
+    BRONZE -.-> LOCAL_DBT
+    LOCAL_DBT -.-> SILVER
+    LOCAL_APP -. query .-> GOLD

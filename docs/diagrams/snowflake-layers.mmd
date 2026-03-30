@@ -1,0 +1,6 @@
+flowchart TD
+    RAW[Bronze RAW_DATA\n生データ取り込み層]
+    CLEANSED[Silver CLEANSED\n型変換と中間集計]
+    MART[Gold MARKETING_MART\n分析提供層]
+
+    RAW --> CLEANSED --> MART

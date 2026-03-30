@@ -1,0 +1,7 @@
+flowchart LR
+    PR[pull_request] --> PLAN[terraform prod plan]
+    PUSH[push main] --> GATE[prod approval gate]
+    GATE --> APPLY[terraform prod apply]
+    APPLY --> LOADER[prod loader run]
+    LOADER --> DBTRUN[prod dbt run]
+    DBTRUN --> DBTTEST[prod dbt test]
