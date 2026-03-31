@@ -611,6 +611,8 @@ Loader / dbt ジョブが失敗した場合の切り分け手順です。
 - 既存の functional role は維持しつつ、Terraform では data-layer access role をその下位にぶら下げて権限を階層化する
 - `READ_ONLY_ROLE` / `READ_WRITE_ROLE` を中間ロールとして追加し、functional role と data-layer access role の責務を分離する
 - schema object grant は `modules/snowflake_env/modules/schema_object_grants` モジュールに集約し、`permission_level` (`SELECT` / `ALL`) で制御する
+- schema object grant は drift 抑制のため `grant_on_future=true` / `grant_on_all=false` を標準とする
+- 既存オブジェクトへの一括付与が必要な場合のみ、短期的に `grant_on_all=true` を有効化して適用後に戻す
 - テーブル削除を伴う変更は、保護解除を含む別 PR か、明示的な運用手順を前提に実施する
 - managed access は schema 作成時点で有効化し、以降は Terraform 管理下で維持する
 

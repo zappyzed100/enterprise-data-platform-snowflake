@@ -31,11 +31,16 @@ variable "permission_level" {
 variable "grant_on_all" {
   type        = bool
   description = "既存オブジェクトへの権限付与を行うか"
-  default     = true
+  default     = false
 }
 
 variable "grant_on_future" {
   type        = bool
   description = "将来作成オブジェクトへの権限付与を行うか"
   default     = true
+
+  validation {
+    condition     = var.grant_on_all || var.grant_on_future
+    error_message = "grant_on_all または grant_on_future のどちらか一方は true を指定してください。"
+  }
 }

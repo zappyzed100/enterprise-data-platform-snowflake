@@ -613,7 +613,7 @@ module "dbt_bronze_table_grants" {
   in_schema          = "${local.bronze_db_name}.${local.bronze_schema_name}"
   object_type_plural = "TABLES"
   permission_level   = "SELECT"
-  grant_on_all       = true
+  grant_on_all       = false
   grant_on_future    = true
 }
 
@@ -721,7 +721,7 @@ module "streamlit_gold_table_grants" {
   in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
   object_type_plural = "TABLES"
   permission_level   = "SELECT"
-  grant_on_all       = true
+  grant_on_all       = false
   grant_on_future    = true
 }
 
@@ -733,6 +733,6 @@ module "streamlit_gold_view_grants" {
   in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
   object_type_plural = "VIEWS"
   permission_level   = "SELECT"
-  grant_on_all       = true
+  grant_on_all       = false
   grant_on_future    = true
 }
