@@ -69,6 +69,7 @@ PR から本番反映までの標準フロー:
 ### 3.2 成果物（artifact）
 
 - `artifacts/terraform/prod-plan.log`
+- `artifacts/terraform/prod.tfplan`
 - `artifacts/terraform/prod-apply.log`
 - `artifacts/data-pipeline/prod-loader.log`
 - `artifacts/data-pipeline/prod-dbt-run.log`
