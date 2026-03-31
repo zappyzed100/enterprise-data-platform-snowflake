@@ -5,7 +5,7 @@ terraform {
   required_providers {
     snowflake = {
       source  = "snowflakedb/snowflake"
-      version = "~> 2.13.0" # 使用するバージョンを指定
+      version = "= 2.13.0" # preview feature 依存のため、意図しない自動更新を防ぐために固定
     }
   }
 
@@ -35,7 +35,8 @@ provider "snowflake" {
   authenticator     = local.snowflake_authenticator
   role              = local.snowflake_role
 
-  # プレビュー機能を有効化する設定を追加
+  # preview feature を利用しているため、provider 更新時は terraform/README.md の
+  # 「Snowflake Provider 更新ポリシー」に従って段階的に検証すること。
   preview_features_enabled = [
     "snowflake_table_resource",
     "snowflake_stage_internal_resource",
