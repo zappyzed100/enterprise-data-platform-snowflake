@@ -402,6 +402,11 @@ variable "SNOWFLAKE_AUTHENTICATOR" {
   type        = string
   nullable    = false
   description = "snowflakeへの認証方法設定"
+
+  validation {
+    condition     = contains(["SNOWFLAKE_JWT", "SNOWFLAKE", "EXTERNALBROWSER", "OAUTH", "USERNAME_PASSWORD_MFA"], upper(var.SNOWFLAKE_AUTHENTICATOR))
+    error_message = "SNOWFLAKE_AUTHENTICATOR は SNOWFLAKE_JWT / SNOWFLAKE / EXTERNALBROWSER / OAUTH / USERNAME_PASSWORD_MFA のいずれかを指定してください。"
+  }
 }
 
 variable "SNOWFLAKE_ROLE" {
