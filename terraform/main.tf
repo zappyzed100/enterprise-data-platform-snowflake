@@ -65,11 +65,6 @@ moved {
 # bootstrap SQL で作成済みのオブジェクトを state へ取り込む
 # ============================================================
 import {
-  to = module.snowflake_env.snowflake_network_policy.terraform_access_policy
-  id = "${local.app_env_upper}_TERRAFORM_NETWORK_POLICY"
-}
-
-import {
   to = module.snowflake_env.snowflake_database.bronze_db
   id = local.bronze_db_name
 }
