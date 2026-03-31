@@ -171,7 +171,7 @@ resource "snowflake_database" "bronze_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -180,7 +180,7 @@ resource "snowflake_database" "silver_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -189,7 +189,7 @@ resource "snowflake_database" "gold_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -200,10 +200,10 @@ resource "snowflake_schema" "bronze_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
-    ignore_changes  = [with_managed_access]
+    ignore_changes = [with_managed_access]
   }
 }
 
@@ -214,10 +214,10 @@ resource "snowflake_schema" "silver_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
-    ignore_changes  = [with_managed_access]
+    ignore_changes = [with_managed_access]
   }
 }
 
@@ -228,10 +228,10 @@ resource "snowflake_schema" "gold_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
-    ignore_changes  = [with_managed_access]
+    ignore_changes = [with_managed_access]
   }
 }
 
@@ -270,7 +270,7 @@ resource "snowflake_stage_internal" "bronze_raw_stage" {
   schema   = snowflake_schema.bronze_schema.name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   depends_on = [snowflake_schema.bronze_schema]
@@ -286,7 +286,7 @@ resource "snowflake_table" "orders" {
   name     = "ORDERS"
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   # ID類も一旦 STRING で受けることで、予期せぬ文字列混入による停止を防ぐ
@@ -343,7 +343,7 @@ resource "snowflake_table" "inventory" {
   name     = "INVENTORY"
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   column {
@@ -381,7 +381,7 @@ resource "snowflake_table" "logistics_centers" {
   name     = "LOGISTICS_CENTERS"
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   column {
@@ -424,7 +424,7 @@ resource "snowflake_table" "products" {
   name     = "PRODUCTS"
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   column {
@@ -483,7 +483,7 @@ resource "snowflake_file_format" "csv_format" {
   null_if                      = var.file_format_null_if
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 
   depends_on = [snowflake_schema.bronze_schema]
@@ -655,9 +655,9 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_silver_usage" {
 resource "snowflake_grant_privileges_to_account_role" "dbt_cleansed_all" {
   account_role_name = snowflake_account_role.silver_transform_rw_role.name
   # dbt が Silver スキーマで必要な権限を明示指定。all_privileges は将来の権限追加時に自動付与されるため不使用
-  privileges        = ["USAGE", "CREATE TABLE", "CREATE VIEW", "CREATE STAGE",
-                       "CREATE SEQUENCE", "CREATE FUNCTION", "CREATE PROCEDURE",
-                       "MODIFY", "MONITOR"]
+  privileges = ["USAGE", "CREATE TABLE", "CREATE VIEW", "CREATE STAGE",
+    "CREATE SEQUENCE", "CREATE FUNCTION", "CREATE PROCEDURE",
+  "MODIFY", "MONITOR"]
 
   on_schema {
     schema_name = "${snowflake_schema.silver_schema.database}.${snowflake_schema.silver_schema.name}"
@@ -687,9 +687,9 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_gold_usage" {
 resource "snowflake_grant_privileges_to_account_role" "dbt_mart_all" {
   account_role_name = snowflake_account_role.gold_publish_rw_role.name
   # dbt が Gold スキーマで必要な権限を明示指定。all_privileges は将来の権限追加時に自動付与されるため不使用
-  privileges        = ["USAGE", "CREATE TABLE", "CREATE VIEW", "CREATE STAGE",
-                       "CREATE SEQUENCE", "CREATE FUNCTION", "CREATE PROCEDURE",
-                       "MODIFY", "MONITOR"]
+  privileges = ["USAGE", "CREATE TABLE", "CREATE VIEW", "CREATE STAGE",
+    "CREATE SEQUENCE", "CREATE FUNCTION", "CREATE PROCEDURE",
+  "MODIFY", "MONITOR"]
 
   on_schema {
     schema_name = "${snowflake_schema.gold_schema.database}.${snowflake_schema.gold_schema.name}"

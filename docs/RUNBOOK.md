@@ -10,7 +10,7 @@
   - Chaos Test で想定した破壊シナリオから再現可能に復帰する
 - 適用範囲:
   - CI/CD: `.github/workflows/ci.yml`
-   - Terraform: `terraform/`
+  - Terraform: `terraform/`
   - Loader: `src/infrastructure/snowflake_loader.py`
   - dbt: `src/scripts/deploy/run_dbt.py`, `src/scripts/deploy/verify_dbt_view_rebuild.py`
 

@@ -183,7 +183,7 @@ jobs:
       - name: Run dbt debug
         env:
           APP_ENV: ${{ matrix.app_env }}
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          TF_VAR_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           DEV_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
           PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_DEV: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
@@ -205,7 +205,7 @@ jobs:
       - name: Verify dbt rebuild on dev
         env:
           APP_ENV: dev
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          TF_VAR_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           DEV_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_DEV: ${{ secrets.DEV_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
@@ -347,7 +347,7 @@ jobs:
       - name: Run prod snowflake loader
         env:
           APP_ENV: prod
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          TF_VAR_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           PROD_LOADER_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_LOADER_USER_RSA_PRIVATE_KEY }}
         run: |
           mkdir -p artifacts/data-pipeline
@@ -376,7 +376,7 @@ jobs:
       - name: Run prod dbt run
         env:
           APP_ENV: prod
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          TF_VAR_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_PROD: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
@@ -409,7 +409,7 @@ jobs:
       - name: Run prod dbt test
         env:
           APP_ENV: prod
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          TF_VAR_SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           PROD_DBT_USER_RSA_PRIVATE_KEY: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_PROD: ${{ secrets.PROD_DBT_USER_RSA_PRIVATE_KEY }}
           SNOWFLAKE_DBT_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
