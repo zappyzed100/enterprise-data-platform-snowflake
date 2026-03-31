@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_prod_apply:
+        description: "Run prod terraform apply"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   # prod dbt-debug を CI でも実行し、接続異常を apply 前に検知する。
@@ -71,7 +77,9 @@ jobs:
     permissions:
       contents: read
     environment: prod
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_prod_apply)
     steps:
       - name: Wait for production approval
         run: |
@@ -82,7 +90,9 @@ jobs:
     permissions:
       contents: write
     needs: [prod-approval-gate]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_prod_apply)
     steps:
       - *checkout_step
       - name: Setup Terraform
