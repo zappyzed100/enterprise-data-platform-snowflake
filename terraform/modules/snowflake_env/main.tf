@@ -200,6 +200,9 @@ resource "snowflake_schema" "bronze_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
+    prevent_destroy = true
+    # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
+    # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
   }
 }
@@ -211,6 +214,9 @@ resource "snowflake_schema" "silver_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
+    prevent_destroy = true
+    # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
+    # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
   }
 }
@@ -222,6 +228,9 @@ resource "snowflake_schema" "gold_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
+    prevent_destroy = true
+    # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
+    # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
   }
 }
@@ -257,8 +266,14 @@ resource "snowflake_warehouse" "streamlit_wh" {
 # 内部ステージ（PUTコマンドの宛先）
 resource "snowflake_stage_internal" "bronze_raw_stage" {
   name     = var.bronze_stage_name
-  database = local.bronze_db_name
-  schema   = local.bronze_schema_name
+  database = snowflake_schema.bronze_schema.database
+  schema   = snowflake_schema.bronze_schema.name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [snowflake_schema.bronze_schema]
 }
 
 # ============================================================
@@ -457,8 +472,8 @@ resource "snowflake_table" "products" {
 
 resource "snowflake_file_format" "csv_format" {
   name        = var.loader_file_format_name
-  database    = local.bronze_db_name
-  schema      = local.bronze_schema_name
+  database    = snowflake_schema.bronze_schema.database
+  schema      = snowflake_schema.bronze_schema.name
   format_type = var.file_format_type
 
   field_delimiter              = var.file_format_field_delimiter
@@ -466,6 +481,12 @@ resource "snowflake_file_format" "csv_format" {
   trim_space                   = var.file_format_trim_space
   field_optionally_enclosed_by = var.file_format_field_optionally_enclosed_by
   null_if                      = var.file_format_null_if
+
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  depends_on = [snowflake_schema.bronze_schema]
 }
 
 # ============================================================
