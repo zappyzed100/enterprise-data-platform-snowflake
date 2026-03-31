@@ -349,33 +349,37 @@ variable "prod_streamlit_user_rsa_public_key" {
   sensitive = true
 }
 
+# SNOWFLAKE_ACCOUNT=ORG-ACCOUNT 形式の複合変数。.env / HCP 環境変数から TF_VAR_SNOWFLAKE_ACCOUNT で注入する。
+# snowflake_organization_name / snowflake_account_name を個別に設定した場合はそちらが優先される。
+variable "SNOWFLAKE_ACCOUNT" {
+  type        = string
+  default     = null
+  nullable    = true
+  sensitive   = true
+  description = "Snowflakeアカウント識別子（ORG-ACCOUNT 形式: 例 CWNOMGN-AF62260）"
+}
+
 variable "snowflake_organization_name" {
   type        = string
-  description = "Snowflakeの組織名（Terraform 正本）"
+  default     = null
+  nullable    = true
+  description = "Snowflakeの組織名（個別指定時のみ設定。通常は SNOWFLAKE_ACCOUNT を使用）"
 
   validation {
-    condition     = length(trimspace(var.snowflake_organization_name)) > 0
-    error_message = "snowflake_organization_name は必須です。"
-  }
-
-  validation {
-    condition     = trimspace(var.snowflake_organization_name) == var.snowflake_organization_name
-    error_message = "snowflake_organization_name の先頭/末尾に空白を含めないでください。"
+    condition     = var.snowflake_organization_name == null || length(trimspace(var.snowflake_organization_name)) > 0
+    error_message = "snowflake_organization_name は空文字にできません。"
   }
 }
 
 variable "snowflake_account_name" {
   type        = string
-  description = "Snowflakeのアカウント名（Terraform 正本）"
+  default     = null
+  nullable    = true
+  description = "Snowflakeのアカウント名（個別指定時のみ設定。通常は SNOWFLAKE_ACCOUNT を使用）"
 
   validation {
-    condition     = length(trimspace(var.snowflake_account_name)) > 0
-    error_message = "snowflake_account_name は必須です。"
-  }
-
-  validation {
-    condition     = trimspace(var.snowflake_account_name) == var.snowflake_account_name
-    error_message = "snowflake_account_name の先頭/末尾に空白を含めないでください。"
+    condition     = var.snowflake_account_name == null || length(trimspace(var.snowflake_account_name)) > 0
+    error_message = "snowflake_account_name は空文字にできません。"
   }
 }
 

@@ -21,6 +21,12 @@ terraform {
 }
 
 locals {
+  # SNOWFLAKE_ACCOUNT（ORG-ACCOUNT 形式）を split して org/account を導出。
+  # snowflake_organization_name / snowflake_account_name が個別設定されている場合はそちらを優先する。
+  _account_parts              = var.SNOWFLAKE_ACCOUNT != null ? split("-", var.SNOWFLAKE_ACCOUNT) : null
+  snowflake_organization_name = var.snowflake_organization_name != null ? var.snowflake_organization_name : (local._account_parts != null ? local._account_parts[0] : null)
+  snowflake_account_name      = var.snowflake_account_name != null ? var.snowflake_account_name : (local._account_parts != null ? local._account_parts[1] : null)
+
   snowflake_user_effective        = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
   snowflake_private_key_raw       = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
   snowflake_private_key_effective = local.snowflake_private_key_raw != null ? replace(local.snowflake_private_key_raw, "\\n", "\n") : null
@@ -43,8 +49,8 @@ check "env_role_mismatch" {
 }
 
 provider "snowflake" {
-  organization_name = var.snowflake_organization_name
-  account_name      = var.snowflake_account_name
+  organization_name = local.snowflake_organization_name
+  account_name      = local.snowflake_account_name
   user              = local.snowflake_user_effective
   private_key       = local.snowflake_private_key_effective
   authenticator     = local.snowflake_authenticator
