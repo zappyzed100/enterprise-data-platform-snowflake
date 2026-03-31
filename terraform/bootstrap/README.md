@@ -13,14 +13,14 @@ Snowflake 初期セットアップ用 SQL を配置しています。
 
 1. Terraform の正本値を反映するため、`./terraform/bootstrap/sync_bootstrap_sql_from_tfvars.sh` を実行してください。
 2. 対象環境の Snowflake で、`ACCOUNTADMIN` ロールで実行してください。
-3. 実行前に必須プレースホルダ（`RUNNER_RSA_PUBLIC_KEY`）を実値へ置き換えてください。`RUNNER_RSA_PUBLIC_KEY_2` は初回 bootstrap では任意です。
+3. 実行前に、SQL 冒頭の DECLARE ブロック内にある `runner_rsa_key_1` に RSA 公開鍵を設定してください。鍵ローテーション時は `runner_rsa_key_2` にも設定します（初回は空文字のままで問題ありません）。
 4. SQL 内の preflight checks で、未置換プレースホルダと誤アカウント実行はエラーで停止します。
 5. 秘密情報（秘密鍵・認証情報）はコミットしないでください。
 6. これらの SQL は日次運用用ではなく、初回セットアップ用です。
 
 補足:
 
-- `EXPECTED_ACCOUNT` / `DATA_RETENTION_TIME_IN_DAYS` / `ALLOWED_IP_LIST` は `terraform/common.auto.tfvars` を正本として同期されます。
+- `DATA_RETENTION_TIME_IN_DAYS` / `ALLOWED_IP_LIST` は `terraform/common.auto.tfvars` を正本として同期されます。
 
 ## 運用ポリシー
 

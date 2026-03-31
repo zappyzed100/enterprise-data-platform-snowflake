@@ -85,30 +85,14 @@ sync_env_sql() {
   local retention_key="$3"
   local allowed_ips_key="$4"
 
-  local org account expected_account retention_days
-  org="$(extract_scalar "snowflake_organization_name")"
-  account="$(extract_scalar "snowflake_account_name")"
-  expected_account="${org}-${account}"
+  local retention_days
   retention_days="$(extract_scalar "${retention_key}")"
 
-  require_non_empty "snowflake_organization_name" "${org}"
-  require_non_empty "snowflake_account_name" "${account}"
   require_non_empty "${retention_key}" "${retention_days}"
   require_positive_integer "${retention_key}" "${retention_days}"
 
   local allowed_ips_sql
   allowed_ips_sql="$(build_sql_ip_list "${allowed_ips_key}")"
-
-  local first_cidr second_cidr
-  first_cidr="$(extract_list "${allowed_ips_key}" | sed -n '1p')"
-  second_cidr="$(extract_list "${allowed_ips_key}" | sed -n '2p')"
-  if [[ -z "${second_cidr}" ]]; then
-    second_cidr="${first_cidr}"
-  fi
-
-  sed -i -E "s#^SET EXPECTED_ACCOUNT[[:space:]]*=.*#SET EXPECTED_ACCOUNT            = '${expected_account}'; -- synced from terraform/common.auto.tfvars#" "${sql_file}"
-  sed -i -E "s#^SET HCP_TERRAFORM_CIDR_1[[:space:]]*=.*#SET HCP_TERRAFORM_CIDR_1        = '${first_cidr}'; -- compatibility placeholder; ALLOWED_IP_LIST is generated below#" "${sql_file}"
-  sed -i -E "s#^SET CORPORATE_CIDR_1[[:space:]]*=.*#SET CORPORATE_CIDR_1            = '${second_cidr}'; -- compatibility placeholder; ALLOWED_IP_LIST is generated below#" "${sql_file}"
 
   sed -i -E "s#^ALTER DATABASE ${env_prefix}_BRONZE_DB SET DATA_RETENTION_TIME_IN_DAYS = [0-9]+;#ALTER DATABASE ${env_prefix}_BRONZE_DB SET DATA_RETENTION_TIME_IN_DAYS = ${retention_days};#" "${sql_file}"
   sed -i -E "s#^ALTER DATABASE ${env_prefix}_SILVER_DB SET DATA_RETENTION_TIME_IN_DAYS = [0-9]+;#ALTER DATABASE ${env_prefix}_SILVER_DB SET DATA_RETENTION_TIME_IN_DAYS = ${retention_days};#" "${sql_file}"
