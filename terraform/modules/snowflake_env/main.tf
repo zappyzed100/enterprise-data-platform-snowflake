@@ -281,8 +281,8 @@ resource "snowflake_stage_internal" "bronze_raw_stage" {
 # ============================================================
 
 resource "snowflake_table" "orders" {
-  database = local.bronze_db_name
-  schema   = local.bronze_schema_name
+  database = snowflake_schema.bronze_schema.database
+  schema   = snowflake_schema.bronze_schema.name
   name     = "ORDERS"
 
   lifecycle {
@@ -338,8 +338,8 @@ resource "snowflake_table" "orders" {
 }
 
 resource "snowflake_table" "inventory" {
-  database = local.bronze_db_name
-  schema   = local.bronze_schema_name
+  database = snowflake_schema.bronze_schema.database
+  schema   = snowflake_schema.bronze_schema.name
   name     = "INVENTORY"
 
   lifecycle {
@@ -376,8 +376,8 @@ resource "snowflake_table" "inventory" {
 }
 
 resource "snowflake_table" "logistics_centers" {
-  database = local.bronze_db_name
-  schema   = local.bronze_schema_name
+  database = snowflake_schema.bronze_schema.database
+  schema   = snowflake_schema.bronze_schema.name
   name     = "LOGISTICS_CENTERS"
 
   lifecycle {
@@ -419,8 +419,8 @@ resource "snowflake_table" "logistics_centers" {
 }
 
 resource "snowflake_table" "products" {
-  database = local.bronze_db_name
-  schema   = local.bronze_schema_name
+  database = snowflake_schema.bronze_schema.database
+  schema   = snowflake_schema.bronze_schema.name
   name     = "PRODUCTS"
 
   lifecycle {
