@@ -663,7 +663,14 @@ Loader / dbt ジョブが失敗した場合の切り分け手順です。
 - Service users（loader/dbt/streamlit）には Terraform で network policy を適用する
 - Terraform 実行ユーザー（`<ENV>_TFRUNNER_USER`）への適用は bootstrap SQL で管理する
 
+環境別の許可 CIDR 方針:
+
+| 環境 | 設定値 | 理由 |
+|------|--------|------|
+| DEV | `["0.0.0.0/0"]`（全許可） | 開発者のローカル IP が固定されないため IP 制限なし。HCP Terraform ランナーからの接続も同様に全許可 |
+| PROD | GitHub Actions ランナーの固定 IP | CI 専用実行に限定し接続元を絞る |
+
 運用上の注意:
 
 - 許可 CIDR を設定しない場合、Terraform 側の network policy リソースは作成されない
-- HCP Terraform 公開レンジ更新時は Variables と bootstrap SQL の双方を同時更新する
+- PROD の HCP Terraform 公開レンジ更新時は `PROD_NETWORK_POLICY_ALLOWED_IPS` と bootstrap SQL の双方を同時更新する
