@@ -7,16 +7,20 @@ Snowflake 初期セットアップ用 SQL を配置しています。
 
 - `sql/setup_snowflake_tf_dev.sql`: DEV 環境向けの初期セットアップ SQL
 - `sql/setup_snowflake_tf_prod.sql`: PROD 環境向けの初期セットアップ SQL
-- `sql/setup_snowflake_tf_template.sql`: 環境別 SQL の共通テンプレート
+- `sync_bootstrap_sql_from_tfvars.sh`: `terraform/common.auto.tfvars` から SQL 固定値を同期するスクリプト
 
 ## 使い方
 
-1. テンプレート（`sql/setup_snowflake_tf_template.sql`）を起点に環境別 SQL を更新してください。
+1. Terraform の正本値を反映するため、`./terraform/bootstrap/sync_bootstrap_sql_from_tfvars.sh` を実行してください。
 2. 対象環境の Snowflake で、`ACCOUNTADMIN` ロールで実行してください。
-3. 実行前に必須プレースホルダ（`EXPECTED_ACCOUNT`, `RUNNER_RSA_PUBLIC_KEY`, CIDR）を実値へ置き換えてください。`RUNNER_RSA_PUBLIC_KEY_2` は初回 bootstrap では任意です。
+3. 実行前に必須プレースホルダ（`RUNNER_RSA_PUBLIC_KEY`）を実値へ置き換えてください。`RUNNER_RSA_PUBLIC_KEY_2` は初回 bootstrap では任意です。
 4. SQL 内の preflight checks で、未置換プレースホルダと誤アカウント実行はエラーで停止します。
 5. 秘密情報（秘密鍵・認証情報）はコミットしないでください。
 6. これらの SQL は日次運用用ではなく、初回セットアップ用です。
+
+補足:
+
+- `EXPECTED_ACCOUNT` / `DATA_RETENTION_TIME_IN_DAYS` / `ALLOWED_IP_LIST` は `terraform/common.auto.tfvars` を正本として同期されます。
 
 ## 運用ポリシー
 

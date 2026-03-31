@@ -9,11 +9,11 @@ USE ROLE ACCOUNTADMIN;
 -- =====================================================
 -- Required runtime inputs (replace placeholders before execution)
 -- =====================================================
-SET EXPECTED_ACCOUNT            = '<PROD_ACCOUNT_IDENTIFIER>'; -- ex: ORG-PROD_ACCOUNT
+SET EXPECTED_ACCOUNT            = 'CWNOMGN-AF62260'; -- synced from terraform/common.auto.tfvars
 SET RUNNER_RSA_PUBLIC_KEY       = '<YOUR_PROD_RSA_PUBLIC_KEY_HERE>';
 SET RUNNER_RSA_PUBLIC_KEY_2     = ''; -- optional: set only during key rotation
-SET HCP_TERRAFORM_CIDR_1        = '<HCP_TERRAFORM_CIDR_1>';
-SET CORPORATE_CIDR_1            = '<CORPORATE_CIDR_1>';
+SET HCP_TERRAFORM_CIDR_1        = '75.2.98.97/32'; -- compatibility placeholder; ALLOWED_IP_LIST is generated below
+SET CORPORATE_CIDR_1            = '99.83.150.238/32'; -- compatibility placeholder; ALLOWED_IP_LIST is generated below
 
 -- =====================================================
 -- Preflight checks
@@ -106,10 +106,10 @@ ALTER SCHEMA PROD_GOLD_DB.MARKETING_MART ENABLE MANAGED ACCESS;
 -- 2.1 Network policy for Terraform execution
 -- -----------------------------------------------------
 CREATE NETWORK POLICY IF NOT EXISTS PROD_TERRAFORM_NETWORK_POLICY
-  ALLOWED_IP_LIST = ($HCP_TERRAFORM_CIDR_1, $CORPORATE_CIDR_1);
+  ALLOWED_IP_LIST = ('75.2.98.97/32','99.83.150.238/32','52.86.200.106/32','52.86.201.227/32','52.70.186.109/32','44.236.246.186/32','54.185.161.84/32','44.238.78.236/32','184.73.220.168/32','35.169.128.114/32','52.45.167.229/32','54.225.227.126/32','44.224.173.58/32','44.225.195.96/32','52.37.251.66/32','52.41.30.244/32');
 
 ALTER NETWORK POLICY PROD_TERRAFORM_NETWORK_POLICY
-  SET ALLOWED_IP_LIST = ($HCP_TERRAFORM_CIDR_1, $CORPORATE_CIDR_1);
+  SET ALLOWED_IP_LIST = ('75.2.98.97/32','99.83.150.238/32','52.86.200.106/32','52.86.201.227/32','52.70.186.109/32','44.236.246.186/32','54.185.161.84/32','44.238.78.236/32','184.73.220.168/32','35.169.128.114/32','52.45.167.229/32','54.225.227.126/32','44.224.173.58/32','44.225.195.96/32','52.37.251.66/32','52.41.30.244/32');
 
 ALTER USER PROD_TFRUNNER_USER SET NETWORK_POLICY = PROD_TERRAFORM_NETWORK_POLICY;
 
