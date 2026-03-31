@@ -26,6 +26,11 @@ TF_VAR_app_env=dev terraform -chdir=terraform plan -no-color
 
 変更は PR でレビューし、`prod` は approval gate 後に apply します。
 
+CI での定期検証:
+
+- GitHub Actions `CI Pipeline` の `workflow_dispatch` で `run_provider_upgrade_check=true` を指定すると、
+    `init -backend=false -upgrade` + `validate` を実行する検証ジョブが起動します。
+
 ## 0. Snowflake 認証基盤と初期セットアップ
 
 ### 0.1. セキュリティ設計：キーペア認証と権限分離

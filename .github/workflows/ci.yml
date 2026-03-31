@@ -12,6 +12,11 @@ on:
         required: false
         type: boolean
         default: true
+      run_provider_upgrade_check:
+        description: "Run provider upgrade rehearsal check"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   lint:
@@ -237,6 +242,32 @@ jobs:
           path: |
             artifacts/terraform/prod-plan.log
             artifacts/terraform/prod.tfplan
+          if-no-files-found: warn
+
+  terraform-provider-upgrade-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: github.event_name == 'workflow_dispatch' && inputs.run_provider_upgrade_check
+    steps:
+      - *checkout_step
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Run provider upgrade rehearsal
+        run: |
+          mkdir -p artifacts/terraform
+          terraform -chdir=terraform init -backend=false -upgrade -no-color | tee artifacts/terraform/provider-upgrade-init.log
+          terraform -chdir=terraform validate -no-color | tee artifacts/terraform/provider-upgrade-validate.log
+
+      - name: Save provider upgrade artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: terraform-provider-upgrade-${{ github.run_id }}
+          path: |
+            artifacts/terraform/provider-upgrade-init.log
+            artifacts/terraform/provider-upgrade-validate.log
           if-no-files-found: warn
 
   prod-approval-gate:
