@@ -6,7 +6,6 @@ locals {
   bronze_schema_name            = var.bronze_schema_name
   silver_schema_name            = var.silver_schema_name
   gold_schema_name              = var.gold_schema_name
-  data_retention_days           = local.env == "PROD" ? 90 : 7
   terraform_network_policy_name = "${local.env}_TERRAFORM_NETWORK_POLICY"
   read_only_role_name           = "${local.env}_READ_ONLY_ROLE"
   read_write_role_name          = "${local.env}_READ_WRITE_ROLE"
@@ -224,7 +223,7 @@ resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
 
 resource "snowflake_database" "bronze_db" {
   name                        = local.bronze_db_name
-  data_retention_time_in_days = local.data_retention_days
+  data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
     prevent_destroy = true
@@ -233,7 +232,7 @@ resource "snowflake_database" "bronze_db" {
 
 resource "snowflake_database" "silver_db" {
   name                        = local.silver_db_name
-  data_retention_time_in_days = local.data_retention_days
+  data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
     prevent_destroy = true
@@ -242,7 +241,7 @@ resource "snowflake_database" "silver_db" {
 
 resource "snowflake_database" "gold_db" {
   name                        = local.gold_db_name
-  data_retention_time_in_days = local.data_retention_days
+  data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
     prevent_destroy = true
@@ -252,8 +251,8 @@ resource "snowflake_database" "gold_db" {
 resource "snowflake_schema" "bronze_schema" {
   database            = snowflake_database.bronze_db.name
   name                = local.bronze_schema_name
-  is_transient        = false
-  with_managed_access = true
+  is_transient        = var.schema_is_transient
+  with_managed_access = var.schema_with_managed_access
 
   lifecycle {
     prevent_destroy = true
@@ -264,8 +263,8 @@ resource "snowflake_schema" "bronze_schema" {
 resource "snowflake_schema" "silver_schema" {
   database            = snowflake_database.silver_db.name
   name                = local.silver_schema_name
-  is_transient        = false
-  with_managed_access = true
+  is_transient        = var.schema_is_transient
+  with_managed_access = var.schema_with_managed_access
 
   lifecycle {
     prevent_destroy = true
@@ -276,8 +275,8 @@ resource "snowflake_schema" "silver_schema" {
 resource "snowflake_schema" "gold_schema" {
   database            = snowflake_database.gold_db.name
   name                = local.gold_schema_name
-  is_transient        = false
-  with_managed_access = true
+  is_transient        = var.schema_is_transient
+  with_managed_access = var.schema_with_managed_access
 
   lifecycle {
     prevent_destroy = true
@@ -287,10 +286,10 @@ resource "snowflake_schema" "gold_schema" {
 
 resource "snowflake_warehouse" "loader_wh" {
   name                = var.loader_warehouse_name
-  warehouse_size      = "X-SMALL" # 最小サイズ（コスト最適化）
-  auto_suspend        = 60        # 60秒間クエリがないと自動停止
-  auto_resume         = true      # クエリが来たら自動で再起動
-  initially_suspended = true      # 作成直後は停止状態にする
+  warehouse_size      = var.warehouse_size
+  auto_suspend        = var.warehouse_auto_suspend
+  auto_resume         = var.warehouse_auto_resume
+  initially_suspended = var.warehouse_initially_suspended
 
   lifecycle {
     prevent_destroy = true
@@ -299,10 +298,10 @@ resource "snowflake_warehouse" "loader_wh" {
 
 resource "snowflake_warehouse" "dbt_wh" {
   name                = var.dbt_warehouse_name
-  warehouse_size      = "X-SMALL"
-  auto_suspend        = 60
-  auto_resume         = true
-  initially_suspended = true
+  warehouse_size      = var.warehouse_size
+  auto_suspend        = var.warehouse_auto_suspend
+  auto_resume         = var.warehouse_auto_resume
+  initially_suspended = var.warehouse_initially_suspended
   lifecycle {
     prevent_destroy = true
   }
@@ -310,10 +309,10 @@ resource "snowflake_warehouse" "dbt_wh" {
 
 resource "snowflake_warehouse" "streamlit_wh" {
   name                = var.streamlit_warehouse_name
-  warehouse_size      = "X-SMALL"
-  auto_suspend        = 60
-  auto_resume         = true
-  initially_suspended = true
+  warehouse_size      = var.warehouse_size
+  auto_suspend        = var.warehouse_auto_suspend
+  auto_resume         = var.warehouse_auto_resume
+  initially_suspended = var.warehouse_initially_suspended
   lifecycle {
     prevent_destroy = true
   }
@@ -532,17 +531,17 @@ resource "snowflake_file_format" "csv_format" {
   name        = var.loader_file_format_name
   database    = local.bronze_db_name
   schema      = local.bronze_schema_name
-  format_type = "CSV"
+  format_type = var.file_format_type
 
   lifecycle {
     prevent_destroy = true
   }
 
-  field_delimiter              = ","
-  skip_header                  = 1
-  trim_space                   = true
-  field_optionally_enclosed_by = "\"" # 囲み文字がある場合
-  null_if                      = ["NULL", ""]
+  field_delimiter              = var.file_format_field_delimiter
+  skip_header                  = var.file_format_skip_header
+  trim_space                   = var.file_format_trim_space
+  field_optionally_enclosed_by = var.file_format_field_optionally_enclosed_by
+  null_if                      = var.file_format_null_if
 }
 
 # ============================================================

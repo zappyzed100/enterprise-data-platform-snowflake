@@ -8,6 +8,21 @@ variable "env" {
   }
 }
 
+variable "db_data_retention_days" {
+  type        = number
+  description = "Database の data retention 日数"
+}
+
+variable "schema_is_transient" {
+  type        = bool
+  description = "Schema の is_transient"
+}
+
+variable "schema_with_managed_access" {
+  type        = bool
+  description = "Schema の with_managed_access"
+}
+
 variable "bronze_db_name" {
   type        = string
   description = "Bronze DB 名"
@@ -91,6 +106,56 @@ variable "streamlit_role_name" {
 variable "streamlit_warehouse_name" {
   type        = string
   description = "Streamlit warehouse 名"
+}
+
+variable "warehouse_size" {
+  type        = string
+  description = "Warehouse サイズ"
+}
+
+variable "warehouse_auto_suspend" {
+  type        = number
+  description = "Warehouse auto_suspend 秒数"
+}
+
+variable "warehouse_auto_resume" {
+  type        = bool
+  description = "Warehouse auto_resume"
+}
+
+variable "warehouse_initially_suspended" {
+  type        = bool
+  description = "Warehouse initially_suspended"
+}
+
+variable "file_format_type" {
+  type        = string
+  description = "File format type"
+}
+
+variable "file_format_field_delimiter" {
+  type        = string
+  description = "File format field delimiter"
+}
+
+variable "file_format_skip_header" {
+  type        = number
+  description = "File format skip_header"
+}
+
+variable "file_format_trim_space" {
+  type        = bool
+  description = "File format trim_space"
+}
+
+variable "file_format_field_optionally_enclosed_by" {
+  type        = string
+  description = "File format field_optionally_enclosed_by"
+}
+
+variable "file_format_null_if" {
+  type        = list(string)
+  description = "File format null_if"
 }
 
 variable "loader_user_rsa_public_key" {

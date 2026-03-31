@@ -23,6 +23,26 @@ variable "PROD_TF_ADMIN_ROLE" {
   description = "PROD 環境で Terraform 実行に使用する Snowflake ロール名"
 }
 
+variable "DEV_DB_DATA_RETENTION_DAYS" {
+  type        = string
+  description = "DEV 環境の DB retention 日数"
+}
+
+variable "PROD_DB_DATA_RETENTION_DAYS" {
+  type        = string
+  description = "PROD 環境の DB retention 日数"
+}
+
+variable "SNOWFLAKE_SCHEMA_IS_TRANSIENT" {
+  type        = string
+  description = "Schema の is_transient 設定 (true/false)"
+}
+
+variable "SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS" {
+  type        = string
+  description = "Schema の managed access 設定 (true/false)"
+}
+
 variable "SNOWFLAKE_BRONZE_SCHEMA" {
   type        = string
   description = "Bronze schema 名（全環境共通）"
@@ -41,6 +61,56 @@ variable "SNOWFLAKE_GOLD_SCHEMA" {
 variable "SNOWFLAKE_BRONZE_STAGE" {
   type        = string
   description = "Bronze stage 名（全環境共通）"
+}
+
+variable "SNOWFLAKE_WAREHOUSE_SIZE" {
+  type        = string
+  description = "Warehouse サイズ（全環境共通）"
+}
+
+variable "SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS" {
+  type        = string
+  description = "Warehouse auto_suspend 秒数（全環境共通）"
+}
+
+variable "SNOWFLAKE_WAREHOUSE_AUTO_RESUME" {
+  type        = string
+  description = "Warehouse auto_resume 設定 (true/false)"
+}
+
+variable "SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED" {
+  type        = string
+  description = "Warehouse initially_suspended 設定 (true/false)"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_TYPE" {
+  type        = string
+  description = "Loader file format type"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER" {
+  type        = string
+  description = "Loader file format field delimiter"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_SKIP_HEADER" {
+  type        = string
+  description = "Loader file format skip_header"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_TRIM_SPACE" {
+  type        = string
+  description = "Loader file format trim_space (true/false)"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY" {
+  type        = string
+  description = "Loader file format field_optionally_enclosed_by"
+}
+
+variable "SNOWFLAKE_FILE_FORMAT_NULL_IF" {
+  type        = list(string)
+  description = "Loader file format null_if"
 }
 
 variable "DEV_BRONZE_DB" {
@@ -176,61 +246,21 @@ variable "PROD_STREAMLIT_WH" {
 variable "DEV_NETWORK_POLICY_ALLOWED_IPS" {
   type        = list(string)
   description = "DEV 向けに許可する送信元CIDR"
-  # Source: https://app.terraform.io/api/meta/ip-ranges (2026-03-31取得)
-  default = [
-    "75.2.98.97/32",
-    "99.83.150.238/32",
-    "52.86.200.106/32",
-    "52.86.201.227/32",
-    "52.70.186.109/32",
-    "44.236.246.186/32",
-    "54.185.161.84/32",
-    "44.238.78.236/32",
-    "184.73.220.168/32",
-    "35.169.128.114/32",
-    "52.45.167.229/32",
-    "54.225.227.126/32",
-    "44.224.173.58/32",
-    "44.225.195.96/32",
-    "52.37.251.66/32",
-    "52.41.30.244/32",
-  ]
 }
 
 variable "PROD_NETWORK_POLICY_ALLOWED_IPS" {
   type        = list(string)
   description = "PROD 向けに許可する送信元CIDR"
-  # Source: https://app.terraform.io/api/meta/ip-ranges (2026-03-31取得)
-  default = [
-    "75.2.98.97/32",
-    "99.83.150.238/32",
-    "52.86.200.106/32",
-    "52.86.201.227/32",
-    "52.70.186.109/32",
-    "44.236.246.186/32",
-    "54.185.161.84/32",
-    "44.238.78.236/32",
-    "184.73.220.168/32",
-    "35.169.128.114/32",
-    "52.45.167.229/32",
-    "54.225.227.126/32",
-    "44.224.173.58/32",
-    "44.225.195.96/32",
-    "52.37.251.66/32",
-    "52.41.30.244/32",
-  ]
 }
 
 variable "DEV_NETWORK_POLICY_BLOCKED_IPS" {
   type        = list(string)
   description = "DEV 向けに拒否する送信元CIDR"
-  default     = []
 }
 
 variable "PROD_NETWORK_POLICY_BLOCKED_IPS" {
   type        = list(string)
   description = "PROD 向けに拒否する送信元CIDR"
-  default     = []
 }
 
 variable "loader_user_rsa_public_key" {

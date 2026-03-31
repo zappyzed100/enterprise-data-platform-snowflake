@@ -3,6 +3,11 @@ locals {
   env           = local.app_env_upper
 
   tf_admin_role = local.app_env_upper == "PROD" ? var.PROD_TF_ADMIN_ROLE : var.DEV_TF_ADMIN_ROLE
+  db_data_retention_days = tonumber(
+    local.app_env_upper == "PROD" ? var.PROD_DB_DATA_RETENTION_DAYS : var.DEV_DB_DATA_RETENTION_DAYS
+  )
+  schema_is_transient        = lower(var.SNOWFLAKE_SCHEMA_IS_TRANSIENT) == "true"
+  schema_with_managed_access = lower(var.SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS) == "true"
 
   bronze_db_name     = local.app_env_upper == "PROD" ? var.PROD_BRONZE_DB : var.DEV_BRONZE_DB
   silver_db_name     = local.app_env_upper == "PROD" ? var.PROD_SILVER_DB : var.DEV_SILVER_DB
@@ -24,6 +29,16 @@ locals {
   streamlit_user_name        = local.app_env_upper == "PROD" ? var.PROD_STREAMLIT_USER : var.DEV_STREAMLIT_USER
   streamlit_role_name        = local.app_env_upper == "PROD" ? var.PROD_STREAMLIT_ROLE : var.DEV_STREAMLIT_ROLE
   streamlit_warehouse_name   = local.app_env_upper == "PROD" ? var.PROD_STREAMLIT_WH : var.DEV_STREAMLIT_WH
+  warehouse_size             = var.SNOWFLAKE_WAREHOUSE_SIZE
+  warehouse_auto_suspend     = tonumber(var.SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS)
+  warehouse_auto_resume      = lower(var.SNOWFLAKE_WAREHOUSE_AUTO_RESUME) == "true"
+  warehouse_initially_suspended = lower(var.SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED) == "true"
+  file_format_type              = var.SNOWFLAKE_FILE_FORMAT_TYPE
+  file_format_field_delimiter   = var.SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER
+  file_format_skip_header       = tonumber(var.SNOWFLAKE_FILE_FORMAT_SKIP_HEADER)
+  file_format_trim_space        = lower(var.SNOWFLAKE_FILE_FORMAT_TRIM_SPACE) == "true"
+  file_format_field_optionally_enclosed_by = upper(var.SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY) == "DOUBLE_QUOTE" ? "\"" : var.SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY
+  file_format_null_if           = var.SNOWFLAKE_FILE_FORMAT_NULL_IF
   network_policy_allowed_ips = local.app_env_upper == "PROD" ? var.PROD_NETWORK_POLICY_ALLOWED_IPS : var.DEV_NETWORK_POLICY_ALLOWED_IPS
   network_policy_blocked_ips = local.app_env_upper == "PROD" ? var.PROD_NETWORK_POLICY_BLOCKED_IPS : var.DEV_NETWORK_POLICY_BLOCKED_IPS
 
@@ -53,6 +68,9 @@ module "snowflake_env" {
   source = "./modules/snowflake_env"
 
   env                            = local.env
+  db_data_retention_days         = local.db_data_retention_days
+  schema_is_transient            = local.schema_is_transient
+  schema_with_managed_access     = local.schema_with_managed_access
   bronze_db_name                 = local.bronze_db_name
   silver_db_name                 = local.silver_db_name
   gold_db_name                   = local.gold_db_name
@@ -70,6 +88,16 @@ module "snowflake_env" {
   streamlit_user_name            = local.streamlit_user_name
   streamlit_role_name            = local.streamlit_role_name
   streamlit_warehouse_name       = local.streamlit_warehouse_name
+  warehouse_size                 = local.warehouse_size
+  warehouse_auto_suspend         = local.warehouse_auto_suspend
+  warehouse_auto_resume          = local.warehouse_auto_resume
+  warehouse_initially_suspended  = local.warehouse_initially_suspended
+  file_format_type               = local.file_format_type
+  file_format_field_delimiter    = local.file_format_field_delimiter
+  file_format_skip_header        = local.file_format_skip_header
+  file_format_trim_space         = local.file_format_trim_space
+  file_format_field_optionally_enclosed_by = local.file_format_field_optionally_enclosed_by
+  file_format_null_if            = local.file_format_null_if
   loader_user_rsa_public_key     = local.selected_loader_user_rsa_public_key
   dbt_user_rsa_public_key        = local.selected_dbt_user_rsa_public_key
   streamlit_user_rsa_public_key  = local.selected_streamlit_user_rsa_public_key

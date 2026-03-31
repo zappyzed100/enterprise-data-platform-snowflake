@@ -48,6 +48,56 @@ export_tf_var_from_env() {
   fi
 }
 
+is_list_tfvar_key() {
+  local key="$1"
+
+  case "${key}" in
+    DEV_NETWORK_POLICY_ALLOWED_IPS|PROD_NETWORK_POLICY_ALLOWED_IPS|DEV_NETWORK_POLICY_BLOCKED_IPS|PROD_NETWORK_POLICY_BLOCKED_IPS|SNOWFLAKE_FILE_FORMAT_NULL_IF)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+write_tfvars_entry() {
+  local key="$1"
+  local value="$2"
+
+  if is_list_tfvar_key "${key}"; then
+    if [[ "${value}" == "__EMPTY_LIST__" ]]; then
+      printf '%s = []\n' "${key}" >> "${RUNTIME_AUTO_TFVARS}"
+      return
+    fi
+
+    local hcl_list="["
+    local first=1
+    local item
+    IFS=',' read -r -a items <<< "${value}"
+    for item in "${items[@]}"; do
+      item="$(printf '%s' "${item}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+      if [[ "${item}" == "__EMPTY_STRING__" ]]; then
+        item=""
+      fi
+      item="${item//\\/\\\\}"
+      item="${item//\"/\\\"}"
+      if [[ ${first} -eq 0 ]]; then
+        hcl_list+=", "
+      fi
+      hcl_list+="\"${item}\""
+      first=0
+    done
+    hcl_list+="]"
+    printf '%s = %s\n' "${key}" "${hcl_list}" >> "${RUNTIME_AUTO_TFVARS}"
+    return
+  fi
+
+  local escaped_value="${value//\\/\\\\}"
+  escaped_value="${escaped_value//\"/\\\"}"
+  printf '%s = "%s"\n' "${key}" "${escaped_value}" >> "${RUNTIME_AUTO_TFVARS}"
+}
+
 configure_snowflake_provider_vars() {
   local organization_name
   local account_name
@@ -89,10 +139,23 @@ configure_terraform_inputs() {
   local keys=(
     DEV_TF_ADMIN_ROLE
     PROD_TF_ADMIN_ROLE
+    DEV_DB_DATA_RETENTION_DAYS
+    PROD_DB_DATA_RETENTION_DAYS
+    SNOWFLAKE_SCHEMA_IS_TRANSIENT
+    SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS
     SNOWFLAKE_BRONZE_SCHEMA
     SNOWFLAKE_SILVER_SCHEMA
     SNOWFLAKE_GOLD_SCHEMA
     SNOWFLAKE_BRONZE_STAGE
+    SNOWFLAKE_WAREHOUSE_SIZE
+    SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS
+    SNOWFLAKE_WAREHOUSE_AUTO_RESUME
+    SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED
+    SNOWFLAKE_FILE_FORMAT_TYPE
+    SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER
+    SNOWFLAKE_FILE_FORMAT_SKIP_HEADER
+    SNOWFLAKE_FILE_FORMAT_TRIM_SPACE
+    SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY
     DEV_BRONZE_DB
     DEV_SILVER_DB
     DEV_GOLD_DB
@@ -113,6 +176,11 @@ configure_terraform_inputs() {
     PROD_DBT_USER
     PROD_DBT_ROLE
     PROD_DBT_WH
+    DEV_NETWORK_POLICY_ALLOWED_IPS
+    PROD_NETWORK_POLICY_ALLOWED_IPS
+    DEV_NETWORK_POLICY_BLOCKED_IPS
+    PROD_NETWORK_POLICY_BLOCKED_IPS
+    SNOWFLAKE_FILE_FORMAT_NULL_IF
     DEV_STREAMLIT_USER
     DEV_STREAMLIT_ROLE
     DEV_STREAMLIT_WH
@@ -129,11 +197,35 @@ configure_terraform_inputs() {
     value="$(read_env_value "${key}")"
     require_env_value "${key}" "${value}"
 
-    local escaped_value="${value//\\/\\\\}"
-    escaped_value="${escaped_value//\"/\\\"}"
-    printf '%s = "%s"\n' "${key}" "${escaped_value}" >> "${RUNTIME_AUTO_TFVARS}"
+    write_tfvars_entry "${key}" "${value}"
 
-    export_tf_var_from_env "${key}"
+    if is_list_tfvar_key "${key}"; then
+      if [[ "${value}" == "__EMPTY_LIST__" ]]; then
+        export "TF_VAR_${key}=[]"
+      else
+        local hcl_env_list="["
+        local first=1
+        local item
+        IFS=',' read -r -a items <<< "${value}"
+        for item in "${items[@]}"; do
+          item="$(printf '%s' "${item}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+          if [[ "${item}" == "__EMPTY_STRING__" ]]; then
+            item=""
+          fi
+          item="${item//\\/\\\\}"
+          item="${item//\"/\\\"}"
+          if [[ ${first} -eq 0 ]]; then
+            hcl_env_list+=", "
+          fi
+          hcl_env_list+="\"${item}\""
+          first=0
+        done
+        hcl_env_list+="]"
+        export "TF_VAR_${key}=${hcl_env_list}"
+      fi
+    else
+      export_tf_var_from_env "${key}"
+    fi
   done
 
   configure_snowflake_provider_vars
