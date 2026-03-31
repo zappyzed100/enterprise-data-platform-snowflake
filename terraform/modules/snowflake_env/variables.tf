@@ -11,6 +11,11 @@ variable "env" {
 variable "db_data_retention_days" {
   type        = number
   description = "Database の data retention 日数"
+
+  validation {
+    condition     = var.db_data_retention_days >= 1
+    error_message = "db_data_retention_days は 1 以上を指定してください。"
+  }
 }
 
 variable "schema_is_transient" {
@@ -116,6 +121,11 @@ variable "warehouse_size" {
 variable "warehouse_auto_suspend" {
   type        = number
   description = "Warehouse auto_suspend 秒数"
+
+  validation {
+    condition     = var.warehouse_auto_suspend >= 0
+    error_message = "warehouse_auto_suspend は 0 以上を指定してください。"
+  }
 }
 
 variable "warehouse_auto_resume" {
@@ -141,6 +151,11 @@ variable "file_format_field_delimiter" {
 variable "file_format_skip_header" {
   type        = number
   description = "File format skip_header"
+
+  validation {
+    condition     = var.file_format_skip_header >= 0
+    error_message = "file_format_skip_header は 0 以上を指定してください。"
+  }
 }
 
 variable "file_format_trim_space" {

@@ -26,11 +26,21 @@ variable "PROD_TF_ADMIN_ROLE" {
 variable "DEV_DB_DATA_RETENTION_DAYS" {
   type        = number
   description = "DEV 環境の DB retention 日数"
+
+  validation {
+    condition     = var.DEV_DB_DATA_RETENTION_DAYS >= 1
+    error_message = "DEV_DB_DATA_RETENTION_DAYS は 1 以上を指定してください。"
+  }
 }
 
 variable "PROD_DB_DATA_RETENTION_DAYS" {
   type        = number
   description = "PROD 環境の DB retention 日数"
+
+  validation {
+    condition     = var.PROD_DB_DATA_RETENTION_DAYS >= 1
+    error_message = "PROD_DB_DATA_RETENTION_DAYS は 1 以上を指定してください。"
+  }
 }
 
 variable "SNOWFLAKE_SCHEMA_IS_TRANSIENT" {
@@ -71,6 +81,11 @@ variable "SNOWFLAKE_WAREHOUSE_SIZE" {
 variable "SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS" {
   type        = number
   description = "Warehouse auto_suspend 秒数（全環境共通）"
+
+  validation {
+    condition     = var.SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS >= 0
+    error_message = "SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS は 0 以上を指定してください。"
+  }
 }
 
 variable "SNOWFLAKE_WAREHOUSE_AUTO_RESUME" {
@@ -96,6 +111,11 @@ variable "SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER" {
 variable "SNOWFLAKE_FILE_FORMAT_SKIP_HEADER" {
   type        = number
   description = "Loader file format skip_header"
+
+  validation {
+    condition     = var.SNOWFLAKE_FILE_FORMAT_SKIP_HEADER >= 0
+    error_message = "SNOWFLAKE_FILE_FORMAT_SKIP_HEADER は 0 以上を指定してください。"
+  }
 }
 
 variable "SNOWFLAKE_FILE_FORMAT_TRIM_SPACE" {
