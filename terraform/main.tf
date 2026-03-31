@@ -89,6 +89,26 @@ locals {
   selected_streamlit_user_rsa_public_key = var.streamlit_user_rsa_public_key
 }
 
+check "env_resource_prefix_alignment" {
+  assert {
+    condition = alltrue([
+      startswith(upper(local.loader_user_name), "${local.app_env_upper}_"),
+      startswith(upper(local.loader_role_name), "${local.app_env_upper}_"),
+      startswith(upper(local.loader_warehouse_name), "${local.app_env_upper}_"),
+      startswith(upper(local.dbt_user_name), "${local.app_env_upper}_"),
+      startswith(upper(local.dbt_role_name), "${local.app_env_upper}_"),
+      startswith(upper(local.dbt_warehouse_name), "${local.app_env_upper}_"),
+      startswith(upper(local.streamlit_user_name), "${local.app_env_upper}_"),
+      startswith(upper(local.streamlit_role_name), "${local.app_env_upper}_"),
+      startswith(upper(local.streamlit_warehouse_name), "${local.app_env_upper}_"),
+      startswith(upper(local.bronze_db_name), "${local.app_env_upper}_"),
+      startswith(upper(local.silver_db_name), "${local.app_env_upper}_"),
+      startswith(upper(local.gold_db_name), "${local.app_env_upper}_"),
+    ])
+    error_message = "app_env と選択されたリソース名プレフィックスが不一致です。HCP Workspace Variables (app_env / *_USER / *_ROLE / *_DB) を確認してください。"
+  }
+}
+
 # module 名を dev -> snowflake_env へ変更した際の state 移行
 moved {
   from = module.dev
