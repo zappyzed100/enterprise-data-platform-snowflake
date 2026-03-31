@@ -617,19 +617,63 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_raw_usage" {
   privileges        = ["USAGE"]
 
   on_schema {
-    schema_name = "${local.bronze_db_name}.${local.bronze_schema_name}"
+    schema_name = "${snowflake_schema.bronze_schema.database}.${snowflake_schema.bronze_schema.name}"
   }
 }
 
 module "dbt_bronze_table_grants" {
   source = "./modules/schema_object_grants"
 
+  # grant_on_all は使用しない。
+  # Terraform 管理テーブルへの SELECT は下の個別リソースで付与し、
+  # 将来 dbt や Terraform が追加するテーブルは grant_on_future でカバーする。
+  # これにより dbt DDL 混在環境での state drift を防ぐ。
   account_role_name  = snowflake_account_role.bronze_transform_ro_role.name
-  in_schema          = "${local.bronze_db_name}.${local.bronze_schema_name}"
+  in_schema          = "${snowflake_schema.bronze_schema.database}.${snowflake_schema.bronze_schema.name}"
   object_type_plural = "TABLES"
   permission_level   = "SELECT"
   grant_on_all       = false
   grant_on_future    = true
+}
+
+# Terraform が管理する Bronze テーブル 4 本への明示的 SELECT 付与。
+# grant_on_all (ON ALL TABLES IN SCHEMA) はスナップショット操作のため、
+# dbt が新テーブルを作るたびに plan 差分が出る drift の温床になる。
+# 代わりにリソース参照で個別付与することで state を安定させる。
+resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_orders" {
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = "${snowflake_table.orders.database}.${snowflake_table.orders.schema}.${snowflake_table.orders.name}"
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_inventory" {
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = "${snowflake_table.inventory.database}.${snowflake_table.inventory.schema}.${snowflake_table.inventory.name}"
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_logistics_centers" {
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = "${snowflake_table.logistics_centers.database}.${snowflake_table.logistics_centers.schema}.${snowflake_table.logistics_centers.name}"
+  }
+}
+
+resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_products" {
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
+  privileges        = ["SELECT"]
+  on_schema_object {
+    object_type = "TABLE"
+    object_name = "${snowflake_table.products.database}.${snowflake_table.products.schema}.${snowflake_table.products.name}"
+  }
 }
 
 # ------ silver ------
