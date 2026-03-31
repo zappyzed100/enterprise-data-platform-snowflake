@@ -1,11 +1,16 @@
 locals {
-  env                = upper(var.env)
-  bronze_db_name     = var.bronze_db_name
-  silver_db_name     = var.silver_db_name
-  gold_db_name       = var.gold_db_name
-  bronze_schema_name = var.bronze_schema_name
-  silver_schema_name = var.silver_schema_name
-  gold_schema_name   = var.gold_schema_name
+  env                           = upper(var.env)
+  bronze_db_name                = var.bronze_db_name
+  silver_db_name                = var.silver_db_name
+  gold_db_name                  = var.gold_db_name
+  bronze_schema_name            = var.bronze_schema_name
+  silver_schema_name            = var.silver_schema_name
+  gold_schema_name              = var.gold_schema_name
+  bronze_loader_rw_role_name    = "${local.env}_BRONZE_LOADER_RW_ROLE"
+  bronze_transform_ro_role_name = "${local.env}_BRONZE_TRANSFORM_RO_ROLE"
+  silver_transform_rw_role_name = "${local.env}_SILVER_TRANSFORM_RW_ROLE"
+  gold_publish_rw_role_name     = "${local.env}_GOLD_PUBLISH_RW_ROLE"
+  gold_consume_ro_role_name     = "${local.env}_GOLD_CONSUME_RO_ROLE"
 }
 
 # ============================================================
@@ -17,7 +22,7 @@ resource "snowflake_account_role" "loader_role" {
   name = var.loader_role_name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -28,7 +33,7 @@ resource "snowflake_user" "loader_user" {
   default_role   = snowflake_account_role.loader_role.name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -42,7 +47,7 @@ resource "snowflake_account_role" "dbt_role" {
   name = var.dbt_role_name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -53,7 +58,7 @@ resource "snowflake_user" "dbt_user" {
   default_role   = snowflake_account_role.dbt_role.name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -68,7 +73,7 @@ resource "snowflake_account_role" "streamlit_role" {
   name = var.streamlit_role_name
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -79,13 +84,79 @@ resource "snowflake_user" "streamlit_user" {
   rsa_public_key = var.streamlit_user_rsa_public_key
   default_role   = snowflake_account_role.streamlit_role.name
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
 resource "snowflake_grant_account_role" "streamlit_role_grant" {
   role_name = snowflake_account_role.streamlit_role.name
   user_name = snowflake_user.streamlit_user.name
+}
+
+# --- Shared access roles ---
+resource "snowflake_account_role" "bronze_loader_rw_role" {
+  name = local.bronze_loader_rw_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_account_role" "bronze_transform_ro_role" {
+  name = local.bronze_transform_ro_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_account_role" "silver_transform_rw_role" {
+  name = local.silver_transform_rw_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_account_role" "gold_publish_rw_role" {
+  name = local.gold_publish_rw_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_account_role" "gold_consume_ro_role" {
+  name = local.gold_consume_ro_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_grant_account_role" "bronze_loader_rw_to_loader_role" {
+  role_name        = snowflake_account_role.bronze_loader_rw_role.name
+  parent_role_name = snowflake_account_role.loader_role.name
+}
+
+resource "snowflake_grant_account_role" "bronze_transform_ro_to_dbt_role" {
+  role_name        = snowflake_account_role.bronze_transform_ro_role.name
+  parent_role_name = snowflake_account_role.dbt_role.name
+}
+
+resource "snowflake_grant_account_role" "silver_transform_rw_to_dbt_role" {
+  role_name        = snowflake_account_role.silver_transform_rw_role.name
+  parent_role_name = snowflake_account_role.dbt_role.name
+}
+
+resource "snowflake_grant_account_role" "gold_publish_rw_to_dbt_role" {
+  role_name        = snowflake_account_role.gold_publish_rw_role.name
+  parent_role_name = snowflake_account_role.dbt_role.name
+}
+
+resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
+  role_name        = snowflake_account_role.gold_consume_ro_role.name
+  parent_role_name = snowflake_account_role.streamlit_role.name
 }
 
 # ============================================================
@@ -100,7 +171,7 @@ resource "snowflake_warehouse" "loader_wh" {
   initially_suspended = true      # 作成直後は停止状態にする
 
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -111,7 +182,7 @@ resource "snowflake_warehouse" "dbt_wh" {
   auto_resume         = true
   initially_suspended = true
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -122,7 +193,7 @@ resource "snowflake_warehouse" "streamlit_wh" {
   auto_resume         = true
   initially_suspended = true
   lifecycle {
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
@@ -135,6 +206,10 @@ resource "snowflake_stage_internal" "bronze_raw_stage" {
   name     = var.bronze_stage_name
   database = local.bronze_db_name
   schema   = local.bronze_schema_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ============================================================
@@ -145,6 +220,10 @@ resource "snowflake_table" "orders" {
   database = local.bronze_db_name
   schema   = local.bronze_schema_name
   name     = "ORDERS"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   # ID類も一旦 STRING で受けることで、予期せぬ文字列混入による停止を防ぐ
   column {
@@ -199,6 +278,10 @@ resource "snowflake_table" "inventory" {
   schema   = local.bronze_schema_name
   name     = "INVENTORY"
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   column {
     name     = "CENTER_ID"
     type     = "STRING"
@@ -232,6 +315,10 @@ resource "snowflake_table" "logistics_centers" {
   database = local.bronze_db_name
   schema   = local.bronze_schema_name
   name     = "LOGISTICS_CENTERS"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   column {
     name     = "CENTER_ID"
@@ -271,6 +358,10 @@ resource "snowflake_table" "products" {
   database = local.bronze_db_name
   schema   = local.bronze_schema_name
   name     = "PRODUCTS"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 
   column {
     name     = "PRODUCT_ID"
@@ -321,6 +412,10 @@ resource "snowflake_file_format" "csv_format" {
   schema      = local.bronze_schema_name
   format_type = "CSV"
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   field_delimiter              = ","
   skip_header                  = 1
   trim_space                   = true
@@ -345,7 +440,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_wh_usage" {
 
 # ------ bronze ------
 resource "snowflake_grant_privileges_to_account_role" "loader_bronze_db_usage" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["USAGE"]
 
   on_account_object {
@@ -355,7 +450,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_bronze_db_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_bronze_usage" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -364,7 +459,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_bronze_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_raw_schema_usage" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -373,7 +468,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_raw_schema_usage" 
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_stage_read_write" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["READ", "WRITE"]
 
   on_schema_object {
@@ -384,7 +479,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_stage_read_write" 
 
 # ------ tables ------
 resource "snowflake_grant_privileges_to_account_role" "loader_orders_insert" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["INSERT"]
 
   on_schema_object {
@@ -394,7 +489,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_orders_insert" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_inventory_insert" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["INSERT"]
 
   on_schema_object {
@@ -404,7 +499,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_inventory_insert" 
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_logistics_insert" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["INSERT"]
 
   on_schema_object {
@@ -414,7 +509,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_logistics_insert" 
 }
 
 resource "snowflake_grant_privileges_to_account_role" "loader_products_insert" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["INSERT"]
 
   on_schema_object {
@@ -425,7 +520,7 @@ resource "snowflake_grant_privileges_to_account_role" "loader_products_insert" {
 
 # ------ file format ------
 resource "snowflake_grant_privileges_to_account_role" "loader_ff_usage" {
-  account_role_name = snowflake_account_role.loader_role.name
+  account_role_name = snowflake_account_role.bronze_loader_rw_role.name
   privileges        = ["USAGE"]
 
   on_schema_object {
@@ -451,7 +546,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_wh_usage" {
 
 # ------ bronze ------
 resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_db_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
   privileges        = ["USAGE"]
 
   on_account_object {
@@ -461,7 +556,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_db_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -470,7 +565,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_raw_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -479,7 +574,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_raw_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
@@ -491,7 +586,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_future" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
@@ -504,7 +599,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_future"
 
 # ------ silver ------
 resource "snowflake_grant_privileges_to_account_role" "dbt_silver_db_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.silver_transform_rw_role.name
   privileges        = ["USAGE", "CREATE SCHEMA"]
 
   on_account_object {
@@ -514,7 +609,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_silver_db_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_silver_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.silver_transform_rw_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -523,7 +618,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_silver_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_cleansed_all" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.silver_transform_rw_role.name
   all_privileges    = true
 
   on_schema {
@@ -533,7 +628,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_cleansed_all" {
 
 # ------ gold ------
 resource "snowflake_grant_privileges_to_account_role" "dbt_gold_db_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.gold_publish_rw_role.name
   privileges        = ["USAGE", "CREATE SCHEMA"]
 
   on_account_object {
@@ -543,7 +638,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_gold_db_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_gold_usage" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.gold_publish_rw_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -552,7 +647,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_gold_usage" {
 }
 
 resource "snowflake_grant_privileges_to_account_role" "dbt_mart_all" {
-  account_role_name = snowflake_account_role.dbt_role.name
+  account_role_name = snowflake_account_role.gold_publish_rw_role.name
   all_privileges    = true
 
   on_schema {
@@ -578,7 +673,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_wh_usage" {
 # --- gold ---
 # データベースへのアクセス権限
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_db_usage" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["USAGE"]
 
   on_account_object {
@@ -589,7 +684,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_db_usage" 
 
 # ターゲットスキーマへのアクセス権限
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_usage" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["USAGE"]
 
   on_schema {
@@ -600,7 +695,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_usage
 # --- SELECT Privileges (Current & Future) ---
 # 既存および将来作成される全てのテーブルへの参照権限
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_tables_select" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
@@ -612,7 +707,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_table
 }
 
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_future_tables_select" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
@@ -625,7 +720,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_futur
 
 # 既存および将来作成される全てのビューへの参照権限
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_views_select" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
@@ -637,7 +732,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_views
 }
 
 resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_future_views_select" {
-  account_role_name = snowflake_account_role.streamlit_role.name
+  account_role_name = snowflake_account_role.gold_consume_ro_role.name
   privileges        = ["SELECT"]
 
   on_schema_object {
