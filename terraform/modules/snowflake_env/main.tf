@@ -169,16 +169,28 @@ resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
 resource "snowflake_database" "bronze_db" {
   name                        = local.bronze_db_name
   data_retention_time_in_days = var.db_data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "snowflake_database" "silver_db" {
   name                        = local.silver_db_name
   data_retention_time_in_days = var.db_data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "snowflake_database" "gold_db" {
   name                        = local.gold_db_name
   data_retention_time_in_days = var.db_data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "snowflake_schema" "bronze_schema" {
