@@ -6,6 +6,7 @@ locals {
   bronze_schema_name            = var.bronze_schema_name
   silver_schema_name            = var.silver_schema_name
   gold_schema_name              = var.gold_schema_name
+  data_retention_days           = local.env == "PROD" ? 90 : 7
   terraform_network_policy_name = "${local.env}_TERRAFORM_NETWORK_POLICY"
   read_only_role_name           = "${local.env}_READ_ONLY_ROLE"
   read_write_role_name          = "${local.env}_READ_WRITE_ROLE"
@@ -17,8 +18,6 @@ locals {
 }
 
 resource "snowflake_network_policy" "terraform_access_policy" {
-  count = length(var.network_policy_allowed_ip_list) > 0 ? 1 : 0
-
   name            = local.terraform_network_policy_name
   allowed_ip_list = var.network_policy_allowed_ip_list
   blocked_ip_list = var.network_policy_blocked_ip_list
@@ -47,7 +46,7 @@ resource "snowflake_user" "loader_user" {
   login_name     = var.loader_user_name
   rsa_public_key = var.loader_user_rsa_public_key
   default_role   = snowflake_account_role.loader_role.name
-  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
+  network_policy = snowflake_network_policy.terraform_access_policy.name
 
   lifecycle {
     prevent_destroy = true
@@ -73,7 +72,7 @@ resource "snowflake_user" "dbt_user" {
   login_name     = var.dbt_user_name
   rsa_public_key = var.dbt_user_rsa_public_key
   default_role   = snowflake_account_role.dbt_role.name
-  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
+  network_policy = snowflake_network_policy.terraform_access_policy.name
 
   lifecycle {
     prevent_destroy = true
@@ -101,7 +100,7 @@ resource "snowflake_user" "streamlit_user" {
   # 必要に応じてパスワード認証またはキーペア認証を選択
   rsa_public_key = var.streamlit_user_rsa_public_key
   default_role   = snowflake_account_role.streamlit_role.name
-  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
+  network_policy = snowflake_network_policy.terraform_access_policy.name
   lifecycle {
     prevent_destroy = true
   }
@@ -218,6 +217,73 @@ resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
 # ============================================================
 # Warehouses
 # ============================================================
+
+# ============================================================
+# Databases / Schemas
+# ============================================================
+
+resource "snowflake_database" "bronze_db" {
+  name                        = local.bronze_db_name
+  data_retention_time_in_days = local.data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_database" "silver_db" {
+  name                        = local.silver_db_name
+  data_retention_time_in_days = local.data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_database" "gold_db" {
+  name                        = local.gold_db_name
+  data_retention_time_in_days = local.data_retention_days
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_schema" "bronze_schema" {
+  database            = snowflake_database.bronze_db.name
+  name                = local.bronze_schema_name
+  is_transient        = false
+  with_managed_access = true
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [with_managed_access]
+  }
+}
+
+resource "snowflake_schema" "silver_schema" {
+  database            = snowflake_database.silver_db.name
+  name                = local.silver_schema_name
+  is_transient        = false
+  with_managed_access = true
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [with_managed_access]
+  }
+}
+
+resource "snowflake_schema" "gold_schema" {
+  database            = snowflake_database.gold_db.name
+  name                = local.gold_schema_name
+  is_transient        = false
+  with_managed_access = true
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = [with_managed_access]
+  }
+}
 
 resource "snowflake_warehouse" "loader_wh" {
   name                = var.loader_warehouse_name
