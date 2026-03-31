@@ -21,10 +21,6 @@ resource "snowflake_network_policy" "terraform_access_policy" {
   allowed_ip_list = var.network_policy_allowed_ip_list
   blocked_ip_list = var.network_policy_blocked_ip_list
   comment         = "${local.env} environment network policy for service users"
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # ============================================================
@@ -34,10 +30,6 @@ resource "snowflake_network_policy" "terraform_access_policy" {
 # --- Loader ---
 resource "snowflake_account_role" "loader_role" {
   name = var.loader_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_user" "loader_user" {
@@ -46,10 +38,6 @@ resource "snowflake_user" "loader_user" {
   rsa_public_key = var.loader_user_rsa_public_key
   default_role   = snowflake_account_role.loader_role.name
   network_policy = snowflake_network_policy.terraform_access_policy.name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_grant_account_role" "loader_role_grant" {
@@ -60,10 +48,6 @@ resource "snowflake_grant_account_role" "loader_role_grant" {
 # --- dbt ---
 resource "snowflake_account_role" "dbt_role" {
   name = var.dbt_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_user" "dbt_user" {
@@ -72,10 +56,6 @@ resource "snowflake_user" "dbt_user" {
   rsa_public_key = var.dbt_user_rsa_public_key
   default_role   = snowflake_account_role.dbt_role.name
   network_policy = snowflake_network_policy.terraform_access_policy.name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_grant_account_role" "dbt_role_grant" {
@@ -87,10 +67,6 @@ resource "snowflake_grant_account_role" "dbt_role_grant" {
 
 resource "snowflake_account_role" "streamlit_role" {
   name = var.streamlit_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_user" "streamlit_user" {
@@ -100,9 +76,6 @@ resource "snowflake_user" "streamlit_user" {
   rsa_public_key = var.streamlit_user_rsa_public_key
   default_role   = snowflake_account_role.streamlit_role.name
   network_policy = snowflake_network_policy.terraform_access_policy.name
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_grant_account_role" "streamlit_role_grant" {
@@ -113,18 +86,10 @@ resource "snowflake_grant_account_role" "streamlit_role_grant" {
 # --- Shared policy roles ---
 resource "snowflake_account_role" "read_only_role" {
   name = local.read_only_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_account_role" "read_write_role" {
   name = local.read_write_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_grant_account_role" "read_only_to_streamlit_role" {
@@ -150,42 +115,22 @@ resource "snowflake_grant_account_role" "read_only_to_read_write_role" {
 # --- Shared access roles ---
 resource "snowflake_account_role" "bronze_loader_rw_role" {
   name = local.bronze_loader_rw_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_account_role" "bronze_transform_ro_role" {
   name = local.bronze_transform_ro_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_account_role" "silver_transform_rw_role" {
   name = local.silver_transform_rw_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_account_role" "gold_publish_rw_role" {
   name = local.gold_publish_rw_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_account_role" "gold_consume_ro_role" {
   name = local.gold_consume_ro_role_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_grant_account_role" "bronze_loader_rw_to_loader_role" {
@@ -224,28 +169,16 @@ resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
 resource "snowflake_database" "bronze_db" {
   name                        = local.bronze_db_name
   data_retention_time_in_days = var.db_data_retention_days
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_database" "silver_db" {
   name                        = local.silver_db_name
   data_retention_time_in_days = var.db_data_retention_days
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_database" "gold_db" {
   name                        = local.gold_db_name
   data_retention_time_in_days = var.db_data_retention_days
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_schema" "bronze_schema" {
@@ -255,7 +188,6 @@ resource "snowflake_schema" "bronze_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [with_managed_access]
   }
 }
@@ -267,7 +199,6 @@ resource "snowflake_schema" "silver_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [with_managed_access]
   }
 }
@@ -279,7 +210,6 @@ resource "snowflake_schema" "gold_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
     ignore_changes  = [with_managed_access]
   }
 }
@@ -290,10 +220,6 @@ resource "snowflake_warehouse" "loader_wh" {
   auto_suspend        = var.warehouse_auto_suspend
   auto_resume         = var.warehouse_auto_resume
   initially_suspended = var.warehouse_initially_suspended
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_warehouse" "dbt_wh" {
@@ -302,9 +228,6 @@ resource "snowflake_warehouse" "dbt_wh" {
   auto_suspend        = var.warehouse_auto_suspend
   auto_resume         = var.warehouse_auto_resume
   initially_suspended = var.warehouse_initially_suspended
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 resource "snowflake_warehouse" "streamlit_wh" {
@@ -313,9 +236,6 @@ resource "snowflake_warehouse" "streamlit_wh" {
   auto_suspend        = var.warehouse_auto_suspend
   auto_resume         = var.warehouse_auto_resume
   initially_suspended = var.warehouse_initially_suspended
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # ============================================================
@@ -327,10 +247,6 @@ resource "snowflake_stage_internal" "bronze_raw_stage" {
   name     = var.bronze_stage_name
   database = local.bronze_db_name
   schema   = local.bronze_schema_name
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }
 
 # ============================================================
@@ -532,10 +448,6 @@ resource "snowflake_file_format" "csv_format" {
   database    = local.bronze_db_name
   schema      = local.bronze_schema_name
   format_type = var.file_format_type
-
-  lifecycle {
-    prevent_destroy = true
-  }
 
   field_delimiter              = var.file_format_field_delimiter
   skip_header                  = var.file_format_skip_header

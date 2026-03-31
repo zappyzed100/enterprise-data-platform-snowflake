@@ -600,8 +600,8 @@ Loader / dbt ジョブが失敗した場合の切り分け手順です。
 
 方針:
 
-- Role / User / Warehouse / Stage / Bronze tables / File format に `prevent_destroy = true` を適用する
-- Schema は bootstrap で作成後、Terraform に import して `prevent_destroy = true` で保護する
+- `prevent_destroy = true` は Bronze のデータテーブル（RAW 層）に限定して適用する
+- Role / User / Network policy / Database / Schema / Warehouse / Stage / File format は設計変更時の再作成・移行を優先し、`prevent_destroy` は適用しない
 - Network policy は bootstrap で作成後、Terraform に import して継続管理する
 
 補足:
@@ -609,7 +609,7 @@ Loader / dbt ジョブが失敗した場合の切り分け手順です。
 - 既存の functional role は維持しつつ、Terraform では data-layer access role をその下位にぶら下げて権限を階層化する
 - `READ_ONLY_ROLE` / `READ_WRITE_ROLE` を中間ロールとして追加し、functional role と data-layer access role の責務を分離する
 - schema object grant は `modules/snowflake_env/modules/schema_object_grants` モジュールに集約し、`permission_level` (`SELECT` / `ALL`) で制御する
-- destroy を伴う変更は、保護解除を含む別 PR か、明示的な運用手順を前提に実施する
+- テーブル削除を伴う変更は、保護解除を含む別 PR か、明示的な運用手順を前提に実施する
 - managed access は schema 作成時点で有効化し、以降は Terraform 管理下で維持する
 
 ### 3.2. Network Policy 適用方針
