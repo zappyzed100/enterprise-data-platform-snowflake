@@ -61,6 +61,44 @@ moved {
   to   = module.snowflake_env
 }
 
+# ============================================================
+# bootstrap SQL で作成済みのオブジェクトを state へ取り込む
+# ============================================================
+import {
+  to = module.snowflake_env.snowflake_network_policy.terraform_access_policy
+  id = "${local.app_env_upper}_TERRAFORM_NETWORK_POLICY"
+}
+
+import {
+  to = module.snowflake_env.snowflake_database.bronze_db
+  id = local.bronze_db_name
+}
+
+import {
+  to = module.snowflake_env.snowflake_database.silver_db
+  id = local.silver_db_name
+}
+
+import {
+  to = module.snowflake_env.snowflake_database.gold_db
+  id = local.gold_db_name
+}
+
+import {
+  to = module.snowflake_env.snowflake_schema.bronze_schema
+  id = "\"${local.bronze_db_name}\".\"${local.bronze_schema_name}\""
+}
+
+import {
+  to = module.snowflake_env.snowflake_schema.silver_schema
+  id = "\"${local.silver_db_name}\".\"${local.silver_schema_name}\""
+}
+
+import {
+  to = module.snowflake_env.snowflake_schema.gold_schema
+  id = "\"${local.gold_db_name}\".\"${local.gold_schema_name}\""
+}
+
 # APP_ENV に応じて DEV / PROD の Snowflake リソースを作成
 module "snowflake_env" {
   source = "./modules/snowflake_env"
