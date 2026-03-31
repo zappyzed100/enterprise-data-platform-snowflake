@@ -283,18 +283,20 @@ jobs:
 **トリガー条件:**
 
 - `pull_request` イベント（PR 作成・更新時）
+- `push` イベント（main 反映時）
 - `workflow_dispatch` イベント（手動実行、`run_prod_plan=true` 指定時）
 
 **処理内容:**
 
 ```bash
 terraform -chdir=terraform init -reconfigure -backend-config=backend.prod.hcl
-terraform -chdir=terraform plan -no-color
+terraform -chdir=terraform plan -no-color -out=../artifacts/terraform/prod.tfplan
 ```
 
 **出力:**
 
 - `artifacts/terraform/prod-plan.log` に plan 結果を保存
+- `artifacts/terraform/prod.tfplan` に apply 用プランファイルを保存
 
 **実行環境:**
 
@@ -313,7 +315,7 @@ terraform -chdir=terraform plan -no-color
 
 ```bash
 terraform -chdir=terraform init -reconfigure -backend-config=backend.prod.hcl
-terraform -chdir=terraform apply -auto-approve
+terraform -chdir=terraform apply -auto-approve ../artifacts/terraform/prod.tfplan
 ```
 
 **処理フロー:**
@@ -350,7 +352,7 @@ terraform -chdir=terraform apply -auto-approve
     ↓
 [terraform-prod-apply: RUNNING]
     ↓
-[terraform -chdir=terraform apply -auto-approve]
+[terraform -chdir=terraform apply -auto-approve ../artifacts/terraform/prod.tfplan]
     ↓
 [Artifact save / Commit comment]
     ↓
