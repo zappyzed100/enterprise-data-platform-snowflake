@@ -16,7 +16,8 @@
 ## Decision
 
 - Bronze / Silver / Gold schema は bootstrap SQL で managed access を有効化する
-- Terraform では data-layer access role を作成し、functional role の下位に付与する RBAC 階層を採用する
+- Terraform では `READ_ONLY_ROLE` / `READ_WRITE_ROLE` の中間ロールと data-layer access role を組み合わせた RBAC 階層を採用する
+- schema object grant はサブモジュール化し、`permission_level` (`SELECT` / `ALL`) の変数で制御する
 - Role / User / Warehouse / Stage / Bronze tables / File format に `prevent_destroy = true` を適用する
 
 ## Consequences
@@ -29,6 +30,7 @@
 ## Implementation References
 
 - `terraform/modules/snowflake_env/main.tf`
+- `terraform/modules/snowflake_env/modules/schema_object_grants/main.tf`
 - `terraform/bootstrap/sql/setup_snowflake_tf_dev.sql`
 - `terraform/bootstrap/sql/setup_snowflake_tf_prod.sql`
 - `terraform/README.md`

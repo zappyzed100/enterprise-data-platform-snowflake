@@ -26,17 +26,34 @@
 
 Terraform では、以下の access role を作成し functional role の下位に付与します。
 
+- `<ENV>_READ_ONLY_ROLE`
+- `<ENV>_READ_WRITE_ROLE`
+
 - `<ENV>_BRONZE_LOADER_RW_ROLE`
 - `<ENV>_BRONZE_TRANSFORM_RO_ROLE`
 - `<ENV>_SILVER_TRANSFORM_RW_ROLE`
 - `<ENV>_GOLD_PUBLISH_RW_ROLE`
 - `<ENV>_GOLD_CONSUME_RO_ROLE`
 
+階層:
+
+- `READ_ONLY_ROLE` は Streamlit role に付与する
+- `READ_WRITE_ROLE` は Loader role / dbt role に付与する
+- `READ_WRITE_ROLE` は `READ_ONLY_ROLE` を継承し、更新系ロールが参照権限も内包する
+- 各 data-layer access role は `READ_ONLY_ROLE` または `READ_WRITE_ROLE` に付与する
+
 原則:
 
 - オブジェクト権限は access role に付与する
 - アプリケーションやユーザーへは functional role を直接割り当てる
 - functional role は warehouse 利用権限と access role の束ね役に限定する
+
+### 3.3 汎用 Grant モジュール
+
+`terraform/modules/snowflake_env/modules/schema_object_grants/` に、schema object (TABLES / VIEWS) の権限付与を共通化するサブモジュールを配置する。
+
+- `permission_level` 変数で `SELECT` / `ALL` を切り替える
+- `grant_on_all` / `grant_on_future` で既存・将来オブジェクトへの付与範囲を制御する
 
 ## 4. Managed Access 方針
 

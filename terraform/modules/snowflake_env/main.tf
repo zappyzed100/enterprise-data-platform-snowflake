@@ -6,6 +6,8 @@ locals {
   bronze_schema_name            = var.bronze_schema_name
   silver_schema_name            = var.silver_schema_name
   gold_schema_name              = var.gold_schema_name
+  read_only_role_name           = "${local.env}_READ_ONLY_ROLE"
+  read_write_role_name          = "${local.env}_READ_WRITE_ROLE"
   bronze_loader_rw_role_name    = "${local.env}_BRONZE_LOADER_RW_ROLE"
   bronze_transform_ro_role_name = "${local.env}_BRONZE_TRANSFORM_RO_ROLE"
   silver_transform_rw_role_name = "${local.env}_SILVER_TRANSFORM_RW_ROLE"
@@ -93,6 +95,43 @@ resource "snowflake_grant_account_role" "streamlit_role_grant" {
   user_name = snowflake_user.streamlit_user.name
 }
 
+# --- Shared policy roles ---
+resource "snowflake_account_role" "read_only_role" {
+  name = local.read_only_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_account_role" "read_write_role" {
+  name = local.read_write_role_name
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "snowflake_grant_account_role" "read_only_to_streamlit_role" {
+  role_name        = snowflake_account_role.read_only_role.name
+  parent_role_name = snowflake_account_role.streamlit_role.name
+}
+
+resource "snowflake_grant_account_role" "read_write_to_loader_role" {
+  role_name        = snowflake_account_role.read_write_role.name
+  parent_role_name = snowflake_account_role.loader_role.name
+}
+
+resource "snowflake_grant_account_role" "read_write_to_dbt_role" {
+  role_name        = snowflake_account_role.read_write_role.name
+  parent_role_name = snowflake_account_role.dbt_role.name
+}
+
+resource "snowflake_grant_account_role" "read_only_to_read_write_role" {
+  role_name        = snowflake_account_role.read_only_role.name
+  parent_role_name = snowflake_account_role.read_write_role.name
+}
+
 # --- Shared access roles ---
 resource "snowflake_account_role" "bronze_loader_rw_role" {
   name = local.bronze_loader_rw_role_name
@@ -136,27 +175,27 @@ resource "snowflake_account_role" "gold_consume_ro_role" {
 
 resource "snowflake_grant_account_role" "bronze_loader_rw_to_loader_role" {
   role_name        = snowflake_account_role.bronze_loader_rw_role.name
-  parent_role_name = snowflake_account_role.loader_role.name
+  parent_role_name = snowflake_account_role.read_write_role.name
 }
 
 resource "snowflake_grant_account_role" "bronze_transform_ro_to_dbt_role" {
   role_name        = snowflake_account_role.bronze_transform_ro_role.name
-  parent_role_name = snowflake_account_role.dbt_role.name
+  parent_role_name = snowflake_account_role.read_only_role.name
 }
 
 resource "snowflake_grant_account_role" "silver_transform_rw_to_dbt_role" {
   role_name        = snowflake_account_role.silver_transform_rw_role.name
-  parent_role_name = snowflake_account_role.dbt_role.name
+  parent_role_name = snowflake_account_role.read_write_role.name
 }
 
 resource "snowflake_grant_account_role" "gold_publish_rw_to_dbt_role" {
   role_name        = snowflake_account_role.gold_publish_rw_role.name
-  parent_role_name = snowflake_account_role.dbt_role.name
+  parent_role_name = snowflake_account_role.read_write_role.name
 }
 
 resource "snowflake_grant_account_role" "gold_consume_ro_to_streamlit_role" {
   role_name        = snowflake_account_role.gold_consume_ro_role.name
-  parent_role_name = snowflake_account_role.streamlit_role.name
+  parent_role_name = snowflake_account_role.read_only_role.name
 }
 
 # ============================================================
@@ -573,28 +612,15 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_raw_usage" {
   }
 }
 
-resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select" {
-  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
-  privileges        = ["SELECT"]
+module "dbt_bronze_table_grants" {
+  source = "./modules/schema_object_grants"
 
-  on_schema_object {
-    all {
-      object_type_plural = "TABLES"
-      in_schema          = "${local.bronze_db_name}.${local.bronze_schema_name}"
-    }
-  }
-}
-
-resource "snowflake_grant_privileges_to_account_role" "dbt_bronze_select_future" {
-  account_role_name = snowflake_account_role.bronze_transform_ro_role.name
-  privileges        = ["SELECT"]
-
-  on_schema_object {
-    future {
-      object_type_plural = "TABLES"
-      in_schema          = "${local.bronze_db_name}.${local.bronze_schema_name}"
-    }
-  }
+  account_role_name  = snowflake_account_role.bronze_transform_ro_role.name
+  in_schema          = "${local.bronze_db_name}.${local.bronze_schema_name}"
+  object_type_plural = "TABLES"
+  permission_level   = "SELECT"
+  grant_on_all       = true
+  grant_on_future    = true
 }
 
 # ------ silver ------
@@ -694,53 +720,27 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_usage
 
 # --- SELECT Privileges (Current & Future) ---
 # 既存および将来作成される全てのテーブルへの参照権限
-resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_tables_select" {
-  account_role_name = snowflake_account_role.gold_consume_ro_role.name
-  privileges        = ["SELECT"]
+module "streamlit_gold_table_grants" {
+  source = "./modules/schema_object_grants"
 
-  on_schema_object {
-    all {
-      object_type_plural = "TABLES"
-      in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
-    }
-  }
-}
-
-resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_future_tables_select" {
-  account_role_name = snowflake_account_role.gold_consume_ro_role.name
-  privileges        = ["SELECT"]
-
-  on_schema_object {
-    future {
-      object_type_plural = "TABLES"
-      in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
-    }
-  }
+  account_role_name  = snowflake_account_role.gold_consume_ro_role.name
+  in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
+  object_type_plural = "TABLES"
+  permission_level   = "SELECT"
+  grant_on_all       = true
+  grant_on_future    = true
 }
 
 # 既存および将来作成される全てのビューへの参照権限
-resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_views_select" {
-  account_role_name = snowflake_account_role.gold_consume_ro_role.name
-  privileges        = ["SELECT"]
+module "streamlit_gold_view_grants" {
+  source = "./modules/schema_object_grants"
 
-  on_schema_object {
-    all {
-      object_type_plural = "VIEWS"
-      in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
-    }
-  }
-}
-
-resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_future_views_select" {
-  account_role_name = snowflake_account_role.gold_consume_ro_role.name
-  privileges        = ["SELECT"]
-
-  on_schema_object {
-    future {
-      object_type_plural = "VIEWS"
-      in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
-    }
-  }
+  account_role_name  = snowflake_account_role.gold_consume_ro_role.name
+  in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
+  object_type_plural = "VIEWS"
+  permission_level   = "SELECT"
+  grant_on_all       = true
+  grant_on_future    = true
 }
 
 # ============================================================
