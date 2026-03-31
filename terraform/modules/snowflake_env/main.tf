@@ -171,7 +171,7 @@ resource "snowflake_database" "bronze_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -180,7 +180,7 @@ resource "snowflake_database" "silver_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -189,7 +189,7 @@ resource "snowflake_database" "gold_db" {
   data_retention_time_in_days = var.db_data_retention_days
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -200,7 +200,7 @@ resource "snowflake_schema" "bronze_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
@@ -214,7 +214,7 @@ resource "snowflake_schema" "silver_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
@@ -228,7 +228,7 @@ resource "snowflake_schema" "gold_schema" {
   with_managed_access = var.schema_with_managed_access
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
     # with_managed_access は apply 後に provider が "true" へ書き換えるため差分を無視する
     # （Snowflake provider v2.x の既知の挙動。bootstrap SQL で MANAGED ACCESS を設定済みの場合に発生）
     ignore_changes  = [with_managed_access]
@@ -270,7 +270,7 @@ resource "snowflake_stage_internal" "bronze_raw_stage" {
   schema   = snowflake_schema.bronze_schema.name
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   depends_on = [snowflake_schema.bronze_schema]
@@ -286,7 +286,7 @@ resource "snowflake_table" "orders" {
   name     = "ORDERS"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   # ID類も一旦 STRING で受けることで、予期せぬ文字列混入による停止を防ぐ
@@ -343,7 +343,7 @@ resource "snowflake_table" "inventory" {
   name     = "INVENTORY"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   column {
@@ -381,7 +381,7 @@ resource "snowflake_table" "logistics_centers" {
   name     = "LOGISTICS_CENTERS"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   column {
@@ -424,7 +424,7 @@ resource "snowflake_table" "products" {
   name     = "PRODUCTS"
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   column {
@@ -483,7 +483,7 @@ resource "snowflake_file_format" "csv_format" {
   null_if                      = var.file_format_null_if
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 
   depends_on = [snowflake_schema.bronze_schema]
@@ -648,7 +648,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_silver_usage" {
   privileges        = ["USAGE"]
 
   on_schema {
-    all_schemas_in_database = local.silver_db_name
+    all_schemas_in_database = snowflake_database.silver_db.name
   }
 }
 
@@ -660,7 +660,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_cleansed_all" {
                        "MODIFY", "MONITOR"]
 
   on_schema {
-    schema_name = "${local.silver_db_name}.${local.silver_schema_name}"
+    schema_name = "${snowflake_schema.silver_schema.database}.${snowflake_schema.silver_schema.name}"
   }
 }
 
@@ -680,7 +680,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_gold_usage" {
   privileges        = ["USAGE"]
 
   on_schema {
-    all_schemas_in_database = local.gold_db_name
+    all_schemas_in_database = snowflake_database.gold_db.name
   }
 }
 
@@ -692,7 +692,7 @@ resource "snowflake_grant_privileges_to_account_role" "dbt_mart_all" {
                        "MODIFY", "MONITOR"]
 
   on_schema {
-    schema_name = "${local.gold_db_name}.${local.gold_schema_name}"
+    schema_name = "${snowflake_schema.gold_schema.database}.${snowflake_schema.gold_schema.name}"
   }
 }
 
@@ -729,7 +729,7 @@ resource "snowflake_grant_privileges_to_account_role" "streamlit_gold_mart_usage
   privileges        = ["USAGE"]
 
   on_schema {
-    schema_name = "${local.gold_db_name}.${local.gold_schema_name}"
+    schema_name = "${snowflake_schema.gold_schema.database}.${snowflake_schema.gold_schema.name}"
   }
 }
 
@@ -739,7 +739,7 @@ module "streamlit_gold_table_grants" {
   source = "./modules/schema_object_grants"
 
   account_role_name  = snowflake_account_role.gold_consume_ro_role.name
-  in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
+  in_schema          = "${snowflake_schema.gold_schema.database}.${snowflake_schema.gold_schema.name}"
   object_type_plural = "TABLES"
   permission_level   = "SELECT"
   grant_on_all       = false
@@ -751,7 +751,7 @@ module "streamlit_gold_view_grants" {
   source = "./modules/schema_object_grants"
 
   account_role_name  = snowflake_account_role.gold_consume_ro_role.name
-  in_schema          = "${local.gold_db_name}.${local.gold_schema_name}"
+  in_schema          = "${snowflake_schema.gold_schema.database}.${snowflake_schema.gold_schema.name}"
   object_type_plural = "VIEWS"
   permission_level   = "SELECT"
   grant_on_all       = false
