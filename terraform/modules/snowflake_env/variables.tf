@@ -201,26 +201,7 @@ variable "streamlit_user_rsa_public_key" {
 
 variable "network_policy_allowed_ip_list" {
   type        = list(string)
-  description = "network policy で許可する送信元CIDR"
-  # Source: https://app.terraform.io/api/meta/ip-ranges (2026-03-31取得)
-  default = [
-    "75.2.98.97/32",
-    "99.83.150.238/32",
-    "52.86.200.106/32",
-    "52.86.201.227/32",
-    "52.70.186.109/32",
-    "44.236.246.186/32",
-    "54.185.161.84/32",
-    "44.238.78.236/32",
-    "184.73.220.168/32",
-    "35.169.128.114/32",
-    "52.45.167.229/32",
-    "54.225.227.126/32",
-    "44.224.173.58/32",
-    "44.225.195.96/32",
-    "52.37.251.66/32",
-    "52.41.30.244/32",
-  ]
+  description = "network policy で許可する送信元CIDR。common.auto.tfvars で管理すること（HCP Terraform IP 一覧は https://app.terraform.io/api/meta/ip-ranges 参照）。"
 }
 
 variable "network_policy_blocked_ip_list" {
