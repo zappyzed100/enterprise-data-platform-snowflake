@@ -411,18 +411,3 @@ variable "SNOWFLAKE_ROLE" {
   description = "Terraform 実行時に使用する Snowflake ロール。未設定時は {ENV}_TF_ADMIN_ROLE を自動選択"
 }
 
-# 互換性のための旧変数名（HCP側が未切替でも動作させる）
-variable "SNOWFLAKE_USER" {
-  type        = string
-  default     = null
-  nullable    = true
-  description = "互換: 旧変数名のSnowflakeユーザー"
-}
-
-variable "SNOWFLAKE_PRIVATE_KEY" {
-  type        = string
-  default     = null
-  nullable    = true
-  sensitive   = true
-  description = "互換: 旧変数名のSnowflake秘密鍵"
-}

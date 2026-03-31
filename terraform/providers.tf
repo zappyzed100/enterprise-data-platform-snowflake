@@ -27,9 +27,7 @@ locals {
   snowflake_organization_name = var.snowflake_organization_name != null ? var.snowflake_organization_name : (local._account_parts != null ? local._account_parts[0] : null)
   snowflake_account_name      = var.snowflake_account_name != null ? var.snowflake_account_name : (local._account_parts != null ? local._account_parts[1] : null)
 
-  snowflake_user_effective        = var.snowflake_user != null ? var.snowflake_user : var.SNOWFLAKE_USER
-  snowflake_private_key_raw       = var.snowflake_private_key != null ? var.snowflake_private_key : var.SNOWFLAKE_PRIVATE_KEY
-  snowflake_private_key_effective = local.snowflake_private_key_raw != null ? replace(local.snowflake_private_key_raw, "\\n", "\n") : null
+  snowflake_private_key_effective = var.snowflake_private_key != null ? replace(var.snowflake_private_key, "\\n", "\n") : null
   snowflake_authenticator         = trimspace(replace(var.SNOWFLAKE_AUTHENTICATOR, "\r", ""))
   snowflake_role                  = var.SNOWFLAKE_ROLE != null ? trimspace(replace(var.SNOWFLAKE_ROLE, "\r", "")) : trimspace(replace(local.tf_admin_role, "\r", ""))
 
@@ -51,7 +49,7 @@ check "env_role_mismatch" {
 provider "snowflake" {
   organization_name = local.snowflake_organization_name
   account_name      = local.snowflake_account_name
-  user              = local.snowflake_user_effective
+  user              = var.snowflake_user
   private_key       = local.snowflake_private_key_effective
   authenticator     = local.snowflake_authenticator
   role              = local.snowflake_role
