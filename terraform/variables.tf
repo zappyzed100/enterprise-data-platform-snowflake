@@ -173,6 +173,66 @@ variable "PROD_STREAMLIT_WH" {
   description = "PROD Streamlit warehouse 名"
 }
 
+variable "DEV_NETWORK_POLICY_ALLOWED_IPS" {
+  type        = list(string)
+  description = "DEV 向けに許可する送信元CIDR"
+  # Source: https://app.terraform.io/api/meta/ip-ranges (2026-03-31取得)
+  default = [
+    "75.2.98.97/32",
+    "99.83.150.238/32",
+    "52.86.200.106/32",
+    "52.86.201.227/32",
+    "52.70.186.109/32",
+    "44.236.246.186/32",
+    "54.185.161.84/32",
+    "44.238.78.236/32",
+    "184.73.220.168/32",
+    "35.169.128.114/32",
+    "52.45.167.229/32",
+    "54.225.227.126/32",
+    "44.224.173.58/32",
+    "44.225.195.96/32",
+    "52.37.251.66/32",
+    "52.41.30.244/32",
+  ]
+}
+
+variable "PROD_NETWORK_POLICY_ALLOWED_IPS" {
+  type        = list(string)
+  description = "PROD 向けに許可する送信元CIDR"
+  # Source: https://app.terraform.io/api/meta/ip-ranges (2026-03-31取得)
+  default = [
+    "75.2.98.97/32",
+    "99.83.150.238/32",
+    "52.86.200.106/32",
+    "52.86.201.227/32",
+    "52.70.186.109/32",
+    "44.236.246.186/32",
+    "54.185.161.84/32",
+    "44.238.78.236/32",
+    "184.73.220.168/32",
+    "35.169.128.114/32",
+    "52.45.167.229/32",
+    "54.225.227.126/32",
+    "44.224.173.58/32",
+    "44.225.195.96/32",
+    "52.37.251.66/32",
+    "52.41.30.244/32",
+  ]
+}
+
+variable "DEV_NETWORK_POLICY_BLOCKED_IPS" {
+  type        = list(string)
+  description = "DEV 向けに拒否する送信元CIDR"
+  default     = []
+}
+
+variable "PROD_NETWORK_POLICY_BLOCKED_IPS" {
+  type        = list(string)
+  description = "PROD 向けに拒否する送信元CIDR"
+  default     = []
+}
+
 variable "loader_user_rsa_public_key" {
   type        = string
   default     = null

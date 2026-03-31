@@ -6,6 +6,7 @@ locals {
   bronze_schema_name            = var.bronze_schema_name
   silver_schema_name            = var.silver_schema_name
   gold_schema_name              = var.gold_schema_name
+  terraform_network_policy_name = "${local.env}_TERRAFORM_NETWORK_POLICY"
   read_only_role_name           = "${local.env}_READ_ONLY_ROLE"
   read_write_role_name          = "${local.env}_READ_WRITE_ROLE"
   bronze_loader_rw_role_name    = "${local.env}_BRONZE_LOADER_RW_ROLE"
@@ -13,6 +14,19 @@ locals {
   silver_transform_rw_role_name = "${local.env}_SILVER_TRANSFORM_RW_ROLE"
   gold_publish_rw_role_name     = "${local.env}_GOLD_PUBLISH_RW_ROLE"
   gold_consume_ro_role_name     = "${local.env}_GOLD_CONSUME_RO_ROLE"
+}
+
+resource "snowflake_network_policy" "terraform_access_policy" {
+  count = length(var.network_policy_allowed_ip_list) > 0 ? 1 : 0
+
+  name            = local.terraform_network_policy_name
+  allowed_ip_list = var.network_policy_allowed_ip_list
+  blocked_ip_list = var.network_policy_blocked_ip_list
+  comment         = "${local.env} environment network policy for service users"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # ============================================================
@@ -33,6 +47,7 @@ resource "snowflake_user" "loader_user" {
   login_name     = var.loader_user_name
   rsa_public_key = var.loader_user_rsa_public_key
   default_role   = snowflake_account_role.loader_role.name
+  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
 
   lifecycle {
     prevent_destroy = true
@@ -58,6 +73,7 @@ resource "snowflake_user" "dbt_user" {
   login_name     = var.dbt_user_name
   rsa_public_key = var.dbt_user_rsa_public_key
   default_role   = snowflake_account_role.dbt_role.name
+  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
 
   lifecycle {
     prevent_destroy = true
@@ -85,6 +101,7 @@ resource "snowflake_user" "streamlit_user" {
   # 必要に応じてパスワード認証またはキーペア認証を選択
   rsa_public_key = var.streamlit_user_rsa_public_key
   default_role   = snowflake_account_role.streamlit_role.name
+  network_policy = length(snowflake_network_policy.terraform_access_policy) > 0 ? snowflake_network_policy.terraform_access_policy[0].name : null
   lifecycle {
     prevent_destroy = true
   }
@@ -742,24 +759,3 @@ module "streamlit_gold_view_grants" {
   grant_on_all       = true
   grant_on_future    = true
 }
-
-# ============================================================
-# Network Policy
-# ============================================================
-
-# ネットワークポリシー本体の定義
-# resource "snowflake_network_policy" "api_access_policy" {
-#   name    = "${local.env}_API_NETWORK_POLICY"
-#   comment = "Allow access from specific CIDR blocks"
-# 
-#  # 例：特定のVPCやオフィスのIP
-#   allowed_ip_list = ["1.2.3.4/32", "192.168.0.0/24"]
-#    lifecycle {
-#      prevent_destroy = false
-#    }
-# }
-
-# ユーザーへの適用
-# resource "snowflake_user_public_keys" "loader_user_network" {
-#   # ...（既存のユーザー設定）...
-# }
