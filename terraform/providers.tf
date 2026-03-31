@@ -9,12 +9,13 @@ terraform {
     }
   }
 
-  # デフォルトは安全側の dev workspace に固定し、prod は明示的な backend-config 指定時のみ利用する。
+  # backend-config 未指定の直接実行で実運用 state を汚さないよう、
+  # デフォルトはガード用 workspace に固定する。
   backend "remote" {
     organization = "zappyzed100"
 
     workspaces {
-      name = "dev-real-time-logistics-strategy-engine-distilled-mip-1m-01ms"
+      name = "__guard_do_not_use_without_backend_config__"
     }
   }
 }

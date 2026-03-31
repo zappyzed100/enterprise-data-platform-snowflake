@@ -422,6 +422,11 @@ Terraform CLI は `.env` または CI Secrets から
 `TF_TOKEN_app_terraform_io`（互換: `HCP_TERRAFORM_TOKEN`）を読み込みます。
 `terraform login` は不要です。
 
+注意:
+
+- `terraform init` は必ず `-backend-config=backend.dev.hcl` または `-backend-config=backend.prod.hcl` を明示してください。
+- backend-config 未指定の直接実行は、ガード用 workspace（`__guard_do_not_use_without_backend_config__`）へ接続されます。
+
 ### 2.1. DEV / PROD 共通手順
 
 - 実行前に `TF_VAR_app_env` と backend ファイルを明示します。
