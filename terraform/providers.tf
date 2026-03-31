@@ -23,9 +23,10 @@ terraform {
 locals {
   # SNOWFLAKE_ACCOUNT（ORG-ACCOUNT 形式）を split して org/account を導出。
   # snowflake_organization_name / snowflake_account_name が個別設定されている場合はそちらを優先する。
-  _account_parts              = var.SNOWFLAKE_ACCOUNT != null ? split("-", var.SNOWFLAKE_ACCOUNT) : null
-  snowflake_organization_name = var.snowflake_organization_name != null ? var.snowflake_organization_name : (local._account_parts != null ? local._account_parts[0] : null)
-  snowflake_account_name      = var.snowflake_account_name != null ? var.snowflake_account_name : (local._account_parts != null ? local._account_parts[1] : null)
+  # _account_parts[0] = org名、[1..] = アカウント名（ハイフン含む場合に備えて join で結合）
+  _account_parts              = var.SNOWFLAKE_ACCOUNT != null ? split("-", var.SNOWFLAKE_ACCOUNT) : []
+  snowflake_organization_name = var.snowflake_organization_name != null ? var.snowflake_organization_name : (length(local._account_parts) >= 2 ? local._account_parts[0] : null)
+  snowflake_account_name      = var.snowflake_account_name != null ? var.snowflake_account_name : (length(local._account_parts) >= 2 ? join("-", slice(local._account_parts, 1, length(local._account_parts))) : null)
 
   snowflake_private_key_effective = var.snowflake_private_key != null ? replace(var.snowflake_private_key, "\\n", "\n") : null
   snowflake_authenticator         = trimspace(replace(var.SNOWFLAKE_AUTHENTICATOR, "\r", ""))
