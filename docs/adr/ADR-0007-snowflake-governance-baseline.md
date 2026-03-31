@@ -1,0 +1,35 @@
+# ADR-0007: Snowflake の権限モデルを managed access と削除保護へ移行する
+
+- Status: Accepted
+- Date: 2026-03-31
+- Deciders: data-platform team
+
+## Context
+
+これまでの Terraform 運用では、Snowflake の主要リソースで `prevent_destroy = false` を維持し、functional role に直接オブジェクト権限を付与していた。
+この構成は bootstrap フェーズでは有効だったが、本番運用を見据えると以下の課題がある。
+
+- 環境を問わず critical resource の誤削除リスクを継続管理したい
+- functional role に権限が集中し、責務境界と監査観点が曖昧になる
+- managed access schema を前提にした grant 統制が明文化されていない
+
+## Decision
+
+- Bronze / Silver / Gold schema は bootstrap SQL で managed access を有効化する
+- Terraform では data-layer access role を作成し、functional role の下位に付与する RBAC 階層を採用する
+- Role / User / Warehouse / Stage / Bronze tables / File format に `prevent_destroy = true` を適用する
+
+## Consequences
+
+- critical resource の誤削除耐性が向上する
+- 権限付与の責務が access role に集約され、レビューしやすくなる
+- managed access の導入により、schema owner を中心に grant を統制できる
+- 既存環境へ適用する際は bootstrap SQL の再実行または差分適用が必要になる
+
+## Implementation References
+
+- `terraform/modules/snowflake_env/main.tf`
+- `terraform/bootstrap/sql/setup_snowflake_tf_dev.sql`
+- `terraform/bootstrap/sql/setup_snowflake_tf_prod.sql`
+- `terraform/README.md`
+- `docs/GOVERNANCE.md`

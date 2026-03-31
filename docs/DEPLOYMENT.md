@@ -193,6 +193,7 @@ APP_ENV=dev uv run python src/scripts/deploy/run_dbt.py test
 
 - `CONTRIBUTING.md`（開発規約・PR 作法）
 - `docs/DATA_CONTRACT.md`（公開テーブル契約と変更管理）
+- `docs/GOVERNANCE.md`（Snowflake 権限モデルと保護方針）
 - `docs/RUNBOOK.md`（障害対応と復旧手順）
 - `docs/TESTING.md`（品質保証と Chaos 方針）
 - `docs/ARCHITECTURE.md`（構成とデータフロー）
