@@ -33,7 +33,7 @@
 
 ```bash
 cp .env.example .env
-# SNOWFLAKE_ACCOUNT や各種 Private Key を設定
+# TF_VAR_SNOWFLAKE_ACCOUNT や各種 Private Key を設定
 ```
 
 補足:
