@@ -114,7 +114,6 @@ APP_ENV=dev terraform import 'module.snowflake_env.snowflake_network_policy.terr
 
 - 推奨: `TF_TOKEN_app_terraform_io`
 - 互換キー: `HCP_TERRAFORM_TOKEN`
-- 互換キー: `HCP_TF_TEAM_API_TOKEN`
 
 `terraform/tf` ラッパーは上記キーを読み込み、実行時に `TF_TOKEN_app_terraform_io` へ正規化して Terraform CLI に渡します。
 
@@ -129,12 +128,9 @@ Workspace 内の `Settings > Variables` から登録してください。
 | loader_user_rsa_public_key       | (Public Key)                     | terraform | No        |
 | dbt_user_rsa_public_key          | (Public Key)                     | terraform | No        |
 | streamlit_user_rsa_public_key    | (Public Key)                     | terraform | No        |
-| snowflake_organization_name      | (Account名の前半分)               | terraform | No        |
-| snowflake_account_name           | (Account名の後半分)               | terraform | No        |
 | SNOWFLAKE_USER                   | (TerraformのUser Name)           | env       | No        |
 | SNOWFLAKE_ROLE                   | <DEV/PROD>_TF_ADMIN_ROLE         | terraform | No        |
 | SNOWFLAKE_PRIVATE_KEY            | (Private Key)                    | terraform | Yes       |
-| SNOWFLAKE_AUTHENTICATOR          | SNOWFLAKE_JWT                    | env       | No        |
 
 Note:
 
@@ -146,22 +142,21 @@ Note:
 
 ## 0.4. Workspace 構成と環境変数
 
-HCP Terraform のワークスペース名と Organization は `.env.shared` で管理し、秘密情報やローカル上書きは `.env` で管理します。
+HCP Terraform の接続先は backend 設定ファイル、Terraform の非機密設定値は `terraform/common.auto.tfvars` で管理し、秘密情報やローカル上書きは `.env` で管理します。
 
 ```bash
-# .env.shared の例
-HCP_TF_WORKSPACE_DEV=dev-real-time-logistics-strategy-engine-distilled-mip-1m-01ms
-HCP_TF_WORKSPACE_PROD=prod-real-time-logistics-strategy-engine-distilled-mip-1m-01ms
+# terraform/backend.dev.hcl
+organization = "zappyzed100"
 
-DEV_TF_ADMIN_ROLE=DEV_TF_ADMIN_ROLE
-PROD_TF_ADMIN_ROLE=PROD_TF_ADMIN_ROLE
+workspaces {
+    name = "dev-real-time-logistics-strategy-engine-distilled-mip-1m-01ms"
+}
 ```
 
-- `HCP_TF_ORGANIZATION`: HCP Terraform の Organization 名
-- `HCP_TF_WORKSPACE_DEV`: DEV 環境のワークスペース名
-- `HCP_TF_WORKSPACE_PROD`: PROD 環境のワークスペース名
-
-実行時に `terraform/tf` ラッパースクリプトが `.env.shared` を先に読み込み、その後 `.env` で同名キーを上書きします。
+- `terraform/backend.dev.hcl`: DEV 環境の HCP Terraform backend 定義
+- `terraform/backend.prod.hcl`: PROD 環境の HCP Terraform backend 定義
+- `terraform/common.auto.tfvars`: 非機密の Terraform 共通設定
+- `.env`: Team API Token やローカル用秘密鍵などの機密値
 
 ### 0.5. 実行フロー
 
@@ -175,7 +170,7 @@ PROD_TF_ADMIN_ROLE=PROD_TF_ADMIN_ROLE
 - ローカル実行は `APP_ENV` 未指定時に `dev` として実行
 - `APP_ENV=prod` は CI 実行（`CI=true` または `GITHUB_ACTIONS=true`）でのみ許可
 - 実行コマンド: 原則 `./terraform/tf` ラッパーを使用する
-- 変数管理: 共通の非機密設定は `.env.shared`、機密情報とローカル差分は `.env`、HCP 側の機密値は Workspace Variables で管理する
+- 変数管理: 非機密の Terraform 設定は `terraform/common.auto.tfvars`、機密情報とローカル差分は `.env`、HCP 側の機密値は Workspace Variables で管理する
 
 多層防御（必須）:
 
@@ -268,13 +263,12 @@ jobs:
 **出力:**
 
 - `artifacts/terraform/prod-plan.log` に plan 結果を保存
-- tfvars ファイルも一緒に artifact 化（runtime/app_env 情報）
 
 **実行環境:**
 
 - `APP_ENV=prod`（prod ワークスペース自動選択）
 - `CI=true` / `GITHUB_ACTIONS=true`（環境ガード bypass）
-- Secrets: `HCP_TERRAFORM_TOKEN`, `HCP_TF_ORGANIZATION` 注入
+- Secrets: `HCP_TERRAFORM_TOKEN` 注入
 
 #### terraform-prod-apply ジョブ
 
@@ -308,7 +302,7 @@ jobs:
 
 - `APP_ENV=prod`
 - `CI=true` / `GITHUB_ACTIONS=true`
-- Secrets: `HCP_TERRAFORM_TOKEN`, `HCP_TF_ORGANIZATION` 注入
+- Secrets: `HCP_TERRAFORM_TOKEN` 注入
 
 **approval gate フロー図:**
 
@@ -372,7 +366,6 @@ CI/CD ワークフローで使用する秘密情報は、GitHub Repository Secre
 | Secret Name | 用途 | 設定対象環境 | 設定方法 |
 |-------------|------|-------------|---------|
 | `HCP_TERRAFORM_TOKEN` | HCP Terraform 認可トークン | 全環境 | [HCP Terraform > Account Settings > API Tokens](https://app.terraform.io/app/settings/tokens) より発行 |
-| `HCP_TF_ORGANIZATION` | HCP Terraform の Organization 名 | 全環境 | terraform/README.md セクション 0.3 参照 |
 | `SNOWFLAKE_ACCOUNT` | Snowflake Account ID | 全環境 | Snowflake アカウント設定より確認 |
 | `DEV_DBT_USER_RSA_PRIVATE_KEY` | DEV dbt 実行ユーザーの秘密鍵 | dev ワークスペース | terraform/README.md セクション 0.2 より生成 |
 | `DEV_LOADER_USER_RSA_PRIVATE_KEY` | DEV Loader 実行ユーザーの秘密鍵 | dev ワークスペース | terraform/README.md セクション 0.2 より生成 |
@@ -399,15 +392,15 @@ CI/CD ワークフローで使用する秘密情報は、GitHub Repository Secre
 
 ## 2. 実行手順
 
-`terraform/tf` は `.env.shared` / `.env` または CI Secrets から
-`TF_TOKEN_app_terraform_io`（互換: `HCP_TERRAFORM_TOKEN`, `HCP_TF_TEAM_API_TOKEN`）を読み込みます。
+`terraform/tf` は `.env` または CI Secrets から
+`TF_TOKEN_app_terraform_io`（互換: `HCP_TERRAFORM_TOKEN`）を読み込みます。
 `terraform login` は不要です。
 
 ### 2.1. DEV / PROD 共通手順
 
 `terraform/tf` ラッパーを使うと、以下を自動化できます。
 
-- `/app/.env.shared` → `/app/.env` の順で自動読み込み
+- `/app/.env` の自動読み込み
 - `TF_VAR_app_env` と Terraform 入力変数の自動設定
 - `init -reconfigure` の自動実行
 
@@ -522,7 +515,6 @@ prod apply が失敗した場合、次の順で切り分けて復旧してくだ
     - Required reviewers が有効か確認
 3. **Secrets の有効性確認**
     - `HCP_TERRAFORM_TOKEN` が CI 用 Team API Token であること
-    - `HCP_TF_ORGANIZATION` が正しいこと
     - トークン失効時は再発行して Secrets を更新
 4. **HCP Terraform 権限確認**
     - CI 用 Team が prod workspace で apply 可能であること
@@ -626,7 +618,7 @@ Loader / dbt ジョブが失敗した場合の切り分け手順です。
 方針:
 
 - `modules/snowflake_env/main.tf` で `<ENV>_TERRAFORM_NETWORK_POLICY` を作成する
-- 許可 CIDR は `DEV_NETWORK_POLICY_ALLOWED_IPS` / `PROD_NETWORK_POLICY_ALLOWED_IPS` で環境別に管理する
+- 許可 CIDR は `terraform/common.auto.tfvars` 内の `DEV_NETWORK_POLICY_ALLOWED_IPS` / `PROD_NETWORK_POLICY_ALLOWED_IPS` で管理する
 - Service users（loader/dbt/streamlit）には Terraform で network policy を適用する
 - Terraform 実行ユーザー（`<ENV>_TFRUNNER_USER`）への適用は bootstrap SQL で管理する
 
