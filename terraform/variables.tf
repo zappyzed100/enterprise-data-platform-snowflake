@@ -1,7 +1,7 @@
 # terraform/variables.tf
 #
-# 命名値は .env.shared / .env から terraform/tf が TF_VAR_* として注入する。
-# HCP Workspace Variables には主に機密値（鍵等）を設定する想定。
+# 非機密の Terraform 設定は common.auto.tfvars で管理する。
+# HCP Workspace Variables / .env には主に機密値（鍵等）を設定する想定。
 
 variable "app_env" {
   type        = string
@@ -24,22 +24,22 @@ variable "PROD_TF_ADMIN_ROLE" {
 }
 
 variable "DEV_DB_DATA_RETENTION_DAYS" {
-  type        = string
+  type        = number
   description = "DEV 環境の DB retention 日数"
 }
 
 variable "PROD_DB_DATA_RETENTION_DAYS" {
-  type        = string
+  type        = number
   description = "PROD 環境の DB retention 日数"
 }
 
 variable "SNOWFLAKE_SCHEMA_IS_TRANSIENT" {
-  type        = string
+  type        = bool
   description = "Schema の is_transient 設定 (true/false)"
 }
 
 variable "SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS" {
-  type        = string
+  type        = bool
   description = "Schema の managed access 設定 (true/false)"
 }
 
@@ -69,17 +69,17 @@ variable "SNOWFLAKE_WAREHOUSE_SIZE" {
 }
 
 variable "SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS" {
-  type        = string
+  type        = number
   description = "Warehouse auto_suspend 秒数（全環境共通）"
 }
 
 variable "SNOWFLAKE_WAREHOUSE_AUTO_RESUME" {
-  type        = string
+  type        = bool
   description = "Warehouse auto_resume 設定 (true/false)"
 }
 
 variable "SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED" {
-  type        = string
+  type        = bool
   description = "Warehouse initially_suspended 設定 (true/false)"
 }
 
@@ -94,12 +94,12 @@ variable "SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER" {
 }
 
 variable "SNOWFLAKE_FILE_FORMAT_SKIP_HEADER" {
-  type        = string
+  type        = number
   description = "Loader file format skip_header"
 }
 
 variable "SNOWFLAKE_FILE_FORMAT_TRIM_SPACE" {
-  type        = string
+  type        = bool
   description = "Loader file format trim_space (true/false)"
 }
 

@@ -3,11 +3,9 @@ locals {
   env           = local.app_env_upper
 
   tf_admin_role = local.app_env_upper == "PROD" ? var.PROD_TF_ADMIN_ROLE : var.DEV_TF_ADMIN_ROLE
-  db_data_retention_days = tonumber(
-    local.app_env_upper == "PROD" ? var.PROD_DB_DATA_RETENTION_DAYS : var.DEV_DB_DATA_RETENTION_DAYS
-  )
-  schema_is_transient        = lower(var.SNOWFLAKE_SCHEMA_IS_TRANSIENT) == "true"
-  schema_with_managed_access = lower(var.SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS) == "true"
+  db_data_retention_days     = local.app_env_upper == "PROD" ? var.PROD_DB_DATA_RETENTION_DAYS : var.DEV_DB_DATA_RETENTION_DAYS
+  schema_is_transient        = var.SNOWFLAKE_SCHEMA_IS_TRANSIENT
+  schema_with_managed_access = var.SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS
 
   bronze_db_name     = local.app_env_upper == "PROD" ? var.PROD_BRONZE_DB : var.DEV_BRONZE_DB
   silver_db_name     = local.app_env_upper == "PROD" ? var.PROD_SILVER_DB : var.DEV_SILVER_DB
@@ -30,13 +28,13 @@ locals {
   streamlit_role_name        = local.app_env_upper == "PROD" ? var.PROD_STREAMLIT_ROLE : var.DEV_STREAMLIT_ROLE
   streamlit_warehouse_name   = local.app_env_upper == "PROD" ? var.PROD_STREAMLIT_WH : var.DEV_STREAMLIT_WH
   warehouse_size             = var.SNOWFLAKE_WAREHOUSE_SIZE
-  warehouse_auto_suspend     = tonumber(var.SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS)
-  warehouse_auto_resume      = lower(var.SNOWFLAKE_WAREHOUSE_AUTO_RESUME) == "true"
-  warehouse_initially_suspended = lower(var.SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED) == "true"
+  warehouse_auto_suspend     = var.SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS
+  warehouse_auto_resume      = var.SNOWFLAKE_WAREHOUSE_AUTO_RESUME
+  warehouse_initially_suspended = var.SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED
   file_format_type              = var.SNOWFLAKE_FILE_FORMAT_TYPE
   file_format_field_delimiter   = var.SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER
-  file_format_skip_header       = tonumber(var.SNOWFLAKE_FILE_FORMAT_SKIP_HEADER)
-  file_format_trim_space        = lower(var.SNOWFLAKE_FILE_FORMAT_TRIM_SPACE) == "true"
+  file_format_skip_header       = var.SNOWFLAKE_FILE_FORMAT_SKIP_HEADER
+  file_format_trim_space        = var.SNOWFLAKE_FILE_FORMAT_TRIM_SPACE
   file_format_field_optionally_enclosed_by = upper(var.SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY) == "DOUBLE_QUOTE" ? "\"" : var.SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY
   file_format_null_if           = var.SNOWFLAKE_FILE_FORMAT_NULL_IF
   network_policy_allowed_ips = local.app_env_upper == "PROD" ? var.PROD_NETWORK_POLICY_ALLOWED_IPS : var.DEV_NETWORK_POLICY_ALLOWED_IPS

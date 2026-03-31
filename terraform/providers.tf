@@ -9,7 +9,7 @@ terraform {
     }
   }
 
-  # organization / workspace は terraform/tf ラッパーの init 時に注入する
+  # organization / workspace は backend.dev.hcl / backend.prod.hcl で管理する
   backend "remote" {}
 }
 

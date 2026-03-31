@@ -3,28 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENV_SHARED_FILE="${PROJECT_ROOT}/.env.shared"
 ENV_FILE="${PROJECT_ROOT}/.env"
-RUNTIME_AUTO_TFVARS="${SCRIPT_DIR}/98_runtime.auto.tfvars"
-
-read_env_value() {
-  local key="$1"
-  local value=""
-  local file
-
-  for file in "${ENV_SHARED_FILE}" "${ENV_FILE}"; do
-    if [[ ! -f "${file}" ]]; then
-      continue
-    fi
-
-    local candidate
-    candidate="$({ sed 's/\r$//' "${file}" | grep -E "^[[:space:]]*${key}[[:space:]]*=" | tail -n 1 || true; } | sed -E "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*//; s/[[:space:]]+$//" | tr -d '"' | tr -d "'")"
-    if [[ -n "${candidate}" ]]; then
-      value="${candidate}"
-    fi
-  done
-
-  printf '%s' "${value}"
+load_local_env() {
+  if [[ -f "${ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    . "${ENV_FILE}"
+    set +a
+  fi
 }
 
 require_env_value() {
@@ -32,257 +18,39 @@ require_env_value() {
   local value="$2"
 
   if [[ -z "${value}" ]]; then
-    echo "[tf] ${key} must be set in ${ENV_SHARED_FILE}, ${ENV_FILE}, or the current shell." >&2
+    echo "[tf] ${key} must be set in the current shell or ${ENV_FILE}." >&2
     exit 1
   fi
 }
 
-export_tf_var_from_env() {
-  local variable_name="$1"
-  local source_key="${2:-$1}"
-  local value
-
-  value="$(read_env_value "${source_key}")"
-  if [[ -n "${value}" ]]; then
-    export "TF_VAR_${variable_name}=${value}"
-  fi
-}
-
-is_list_tfvar_key() {
-  local key="$1"
-
-  case "${key}" in
-    DEV_NETWORK_POLICY_ALLOWED_IPS|PROD_NETWORK_POLICY_ALLOWED_IPS|DEV_NETWORK_POLICY_BLOCKED_IPS|PROD_NETWORK_POLICY_BLOCKED_IPS|SNOWFLAKE_FILE_FORMAT_NULL_IF)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-write_tfvars_entry() {
-  local key="$1"
-  local value="$2"
-
-  if is_list_tfvar_key "${key}"; then
-    if [[ "${value}" == "__EMPTY_LIST__" ]]; then
-      printf '%s = []\n' "${key}" >> "${RUNTIME_AUTO_TFVARS}"
-      return
-    fi
-
-    local hcl_list="["
-    local first=1
-    local item
-    IFS=',' read -r -a items <<< "${value}"
-    for item in "${items[@]}"; do
-      item="$(printf '%s' "${item}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-      if [[ "${item}" == "__EMPTY_STRING__" ]]; then
-        item=""
-      fi
-      item="${item//\\/\\\\}"
-      item="${item//\"/\\\"}"
-      if [[ ${first} -eq 0 ]]; then
-        hcl_list+=", "
-      fi
-      hcl_list+="\"${item}\""
-      first=0
-    done
-    hcl_list+="]"
-    printf '%s = %s\n' "${key}" "${hcl_list}" >> "${RUNTIME_AUTO_TFVARS}"
-    return
-  fi
-
-  local escaped_value="${value//\\/\\\\}"
-  escaped_value="${escaped_value//\"/\\\"}"
-  printf '%s = "%s"\n' "${key}" "${escaped_value}" >> "${RUNTIME_AUTO_TFVARS}"
-}
-
-configure_snowflake_provider_vars() {
-  local organization_name
-  local account_name
-  local account_identifier
-  local snowflake_authenticator
-
-  organization_name="$(read_env_value "SNOWFLAKE_ORGANIZATION_NAME")"
-  account_name="$(read_env_value "SNOWFLAKE_ACCOUNT_NAME")"
-  account_identifier="$(read_env_value "SNOWFLAKE_ACCOUNT")"
-
-  if [[ -z "${organization_name}" || -z "${account_name}" ]]; then
-    if [[ -n "${account_identifier}" && "${account_identifier}" == *-* ]]; then
-      if [[ -z "${organization_name}" ]]; then
-        organization_name="${account_identifier%%-*}"
-      fi
-      if [[ -z "${account_name}" ]]; then
-        account_name="${account_identifier#*-}"
-      fi
+normalize_tf_token() {
+  if [[ -z "${TF_TOKEN_app_terraform_io:-}" ]]; then
+    if [[ -n "${HCP_TERRAFORM_TOKEN:-}" ]]; then
+      export TF_TOKEN_app_terraform_io="${HCP_TERRAFORM_TOKEN}"
     fi
   fi
 
-  if [[ -n "${organization_name}" ]]; then
-    export TF_VAR_snowflake_organization_name="${organization_name}"
-  fi
-  if [[ -n "${account_name}" ]]; then
-    export TF_VAR_snowflake_account_name="${account_name}"
-  fi
-
-  snowflake_authenticator="$(read_env_value "SNOWFLAKE_AUTHENTICATOR")"
-  require_env_value "SNOWFLAKE_AUTHENTICATOR" "${snowflake_authenticator}"
-  export TF_VAR_SNOWFLAKE_AUTHENTICATOR="${snowflake_authenticator}"
-
-  export_tf_var_from_env "snowflake_user" "SNOWFLAKE_USER"
-  export_tf_var_from_env "snowflake_private_key" "SNOWFLAKE_PRIVATE_KEY"
-  export_tf_var_from_env "SNOWFLAKE_ROLE"
+  require_env_value "TF_TOKEN_app_terraform_io (or HCP_TERRAFORM_TOKEN)" "${TF_TOKEN_app_terraform_io:-}"
 }
 
-configure_terraform_inputs() {
-  local keys=(
-    DEV_TF_ADMIN_ROLE
-    PROD_TF_ADMIN_ROLE
-    DEV_DB_DATA_RETENTION_DAYS
-    PROD_DB_DATA_RETENTION_DAYS
-    SNOWFLAKE_SCHEMA_IS_TRANSIENT
-    SNOWFLAKE_SCHEMA_WITH_MANAGED_ACCESS
-    SNOWFLAKE_BRONZE_SCHEMA
-    SNOWFLAKE_SILVER_SCHEMA
-    SNOWFLAKE_GOLD_SCHEMA
-    SNOWFLAKE_BRONZE_STAGE
-    SNOWFLAKE_WAREHOUSE_SIZE
-    SNOWFLAKE_WAREHOUSE_AUTO_SUSPEND_SECONDS
-    SNOWFLAKE_WAREHOUSE_AUTO_RESUME
-    SNOWFLAKE_WAREHOUSE_INITIALLY_SUSPENDED
-    SNOWFLAKE_FILE_FORMAT_TYPE
-    SNOWFLAKE_FILE_FORMAT_FIELD_DELIMITER
-    SNOWFLAKE_FILE_FORMAT_SKIP_HEADER
-    SNOWFLAKE_FILE_FORMAT_TRIM_SPACE
-    SNOWFLAKE_FILE_FORMAT_FIELD_OPTIONALLY_ENCLOSED_BY
-    DEV_BRONZE_DB
-    DEV_SILVER_DB
-    DEV_GOLD_DB
-    PROD_BRONZE_DB
-    PROD_SILVER_DB
-    PROD_GOLD_DB
-    DEV_LOADER_USER
-    DEV_LOADER_ROLE
-    DEV_LOADER_WH
-    DEV_LOADER_FILE_FORMAT_NAME
-    PROD_LOADER_USER
-    PROD_LOADER_ROLE
-    PROD_LOADER_WH
-    PROD_LOADER_FILE_FORMAT_NAME
-    DEV_DBT_USER
-    DEV_DBT_ROLE
-    DEV_DBT_WH
-    PROD_DBT_USER
-    PROD_DBT_ROLE
-    PROD_DBT_WH
-    DEV_NETWORK_POLICY_ALLOWED_IPS
-    PROD_NETWORK_POLICY_ALLOWED_IPS
-    DEV_NETWORK_POLICY_BLOCKED_IPS
-    PROD_NETWORK_POLICY_BLOCKED_IPS
-    SNOWFLAKE_FILE_FORMAT_NULL_IF
-    DEV_STREAMLIT_USER
-    DEV_STREAMLIT_ROLE
-    DEV_STREAMLIT_WH
-    PROD_STREAMLIT_USER
-    PROD_STREAMLIT_ROLE
-    PROD_STREAMLIT_WH
-  )
-  local key
-
-  : > "${RUNTIME_AUTO_TFVARS}"
-
-  for key in "${keys[@]}"; do
-    local value
-    value="$(read_env_value "${key}")"
-    require_env_value "${key}" "${value}"
-
-    write_tfvars_entry "${key}" "${value}"
-
-    if is_list_tfvar_key "${key}"; then
-      if [[ "${value}" == "__EMPTY_LIST__" ]]; then
-        export "TF_VAR_${key}=[]"
-      else
-        local hcl_env_list="["
-        local first=1
-        local item
-        IFS=',' read -r -a items <<< "${value}"
-        for item in "${items[@]}"; do
-          item="$(printf '%s' "${item}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-          if [[ "${item}" == "__EMPTY_STRING__" ]]; then
-            item=""
-          fi
-          item="${item//\\/\\\\}"
-          item="${item//\"/\\\"}"
-          if [[ ${first} -eq 0 ]]; then
-            hcl_env_list+=", "
-          fi
-          hcl_env_list+="\"${item}\""
-          first=0
-        done
-        hcl_env_list+="]"
-        export "TF_VAR_${key}=${hcl_env_list}"
-      fi
-    else
-      export_tf_var_from_env "${key}"
-    fi
-  done
-
-  configure_snowflake_provider_vars
-}
-
-# Load APP_ENV from .env.shared -> .env when APP_ENV is not explicitly provided.
-if [[ -z "${APP_ENV:-}" ]]; then
-  app_env_from_file="$(read_env_value "APP_ENV")"
-  if [[ -n "${app_env_from_file}" ]]; then
-    APP_ENV="${app_env_from_file}"
-  fi
-fi
-
-# Local default: treat unspecified APP_ENV as dev.
-if [[ -z "${APP_ENV:-}" ]]; then
-  APP_ENV="dev"
-fi
-
-# Load Terraform settings from .env.shared -> .env
-load_terraform_config() {
-  local hcp_org
-  hcp_org="$(read_env_value "HCP_TF_ORGANIZATION")"
-  if [[ -n "${hcp_org}" ]]; then
-    HCP_TF_ORGANIZATION="${hcp_org}"
+normalize_provider_overrides() {
+  if [[ -n "${SNOWFLAKE_USER:-}" ]]; then
+    export TF_VAR_snowflake_user="${SNOWFLAKE_USER}"
   fi
 
-  local ws_dev
-  ws_dev="$(read_env_value "HCP_TF_WORKSPACE_DEV")"
-  if [[ -n "${ws_dev}" ]]; then
-    HCP_TF_WORKSPACE_DEV="${ws_dev}"
+  if [[ -n "${SNOWFLAKE_PRIVATE_KEY:-}" ]]; then
+    export TF_VAR_snowflake_private_key="${SNOWFLAKE_PRIVATE_KEY}"
   fi
 
-  local ws_prod
-  ws_prod="$(read_env_value "HCP_TF_WORKSPACE_PROD")"
-  if [[ -n "${ws_prod}" ]]; then
-    HCP_TF_WORKSPACE_PROD="${ws_prod}"
-  fi
-
-  # Prefer explicit Terraform CLI token key, then compatibility aliases.
-  local tf_token
-  tf_token="$(read_env_value "TF_TOKEN_app_terraform_io")"
-  if [[ -z "${tf_token}" ]]; then
-    tf_token="$(read_env_value "HCP_TERRAFORM_TOKEN")"
-  fi
-  if [[ -z "${tf_token}" ]]; then
-    tf_token="$(read_env_value "HCP_TF_TEAM_API_TOKEN")"
-  fi
-  if [[ -n "${tf_token}" ]]; then
-    export TF_TOKEN_app_terraform_io="${tf_token}"
+  if [[ -n "${SNOWFLAKE_ROLE:-}" ]]; then
+    export TF_VAR_SNOWFLAKE_ROLE="${SNOWFLAKE_ROLE}"
   fi
 }
 
-load_terraform_config
+load_local_env
+normalize_tf_token
 
-require_env_value "TF_TOKEN_app_terraform_io (or HCP_TERRAFORM_TOKEN / HCP_TF_TEAM_API_TOKEN)" "${TF_TOKEN_app_terraform_io:-}"
-
-APP_ENV_LOWER="${APP_ENV}"
+APP_ENV_LOWER="${APP_ENV:-dev}"
 case "${APP_ENV_LOWER}" in
   dev|prod)
     ;;
@@ -302,41 +70,18 @@ if [[ "${APP_ENV_LOWER}" == "prod" ]]; then
 fi
 
 export TF_VAR_app_env="${APP_ENV_LOWER}"
-configure_terraform_inputs
+normalize_provider_overrides
 
-# For remote backend runs, force app_env via auto tfvars instead of -var.
-APP_ENV_AUTO_TFVARS="${SCRIPT_DIR}/99_app_env.auto.tfvars"
-printf 'app_env = "%s"\n' "${APP_ENV_LOWER}" > "${APP_ENV_AUTO_TFVARS}"
-
-# Remote backend settings (load from .env.shared -> .env).
-require_env_value "HCP_TF_ORGANIZATION" "${HCP_TF_ORGANIZATION:-}"
-case "${APP_ENV_LOWER}" in
-  dev)
-    HCP_TF_WORKSPACE="${HCP_TF_WORKSPACE_DEV:-}"
-    ;;
-  prod)
-    HCP_TF_WORKSPACE="${HCP_TF_WORKSPACE_PROD:-}"
-    ;;
-esac
-require_env_value "HCP_TF_WORKSPACE_${APP_ENV_LOWER^^}" "${HCP_TF_WORKSPACE}"
-
-BACKEND_TMP_CONFIG="$(mktemp "${SCRIPT_DIR}/.backend.auto.XXXXXX.hcl")"
-cleanup() {
-  rm -f "${BACKEND_TMP_CONFIG}"
-}
-trap cleanup EXIT
-
-cat > "${BACKEND_TMP_CONFIG}" <<EOF
-organization = "${HCP_TF_ORGANIZATION}"
-workspaces {
-  name = "${HCP_TF_WORKSPACE}"
-}
-EOF
+BACKEND_CONFIG_FILE="${SCRIPT_DIR}/backend.${APP_ENV_LOWER}.hcl"
+if [[ ! -f "${BACKEND_CONFIG_FILE}" ]]; then
+  echo "[tf] backend config not found: ${BACKEND_CONFIG_FILE}" >&2
+  exit 1
+fi
 
 ensure_init() {
   terraform -chdir="${SCRIPT_DIR}" init \
     -reconfigure \
-    -backend-config="${BACKEND_TMP_CONFIG}" >/dev/null
+    -backend-config="${BACKEND_CONFIG_FILE}" >/dev/null
 }
 
 cmd="${1:-}"
@@ -350,7 +95,7 @@ case "${cmd}" in
   init)
     terraform -chdir="${SCRIPT_DIR}" init \
       -reconfigure \
-      -backend-config="${BACKEND_TMP_CONFIG}" "$@"
+      -backend-config="${BACKEND_CONFIG_FILE}" "$@"
     ;;
   *)
     ensure_init
