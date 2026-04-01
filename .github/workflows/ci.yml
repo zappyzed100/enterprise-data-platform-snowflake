@@ -343,6 +343,31 @@ jobs:
           fi
 
           terraform -chdir=terraform init -reconfigure -backend-config=backend.prod.hcl
+
+          # 旧ロール名(PROD_DBT_ROLE/PROD_LOADER_ROLE/PROD_STREAMLIT_ROLE)を参照する
+          # stale grant state が残っていると revoke に失敗するため、事前に state から除去する。
+          STALE_GRANT_ADDRESSES="$(terraform -chdir=terraform state list | grep 'module\.snowflake_env\.' || true)"
+          if [ -n "${STALE_GRANT_ADDRESSES}" ]; then
+            while IFS= read -r addr; do
+              [ -z "${addr}" ] && continue
+              if [[ "${addr}" == *"snowflake_grant_privileges_to_account_role"* ]]; then
+                state_body="$(terraform -chdir=terraform state show -no-color "${addr}" 2>/dev/null || true)"
+                if echo "${state_body}" | grep -Eq 'account_role_name\s*=\s*"PROD_(DBT|LOADER|STREAMLIT)_ROLE"'; then
+                  echo "Removing stale grant state: ${addr}"
+                  terraform -chdir=terraform state rm "${addr}" >/dev/null
+                  continue
+                fi
+
+                if [[ "${addr}" == *"module.dbt_bronze_table_grants.snowflake_grant_privileges_to_account_role.on_all[0]"* ]] || \
+                   [[ "${addr}" == *"module.streamlit_gold_table_grants.snowflake_grant_privileges_to_account_role.on_all[0]"* ]] || \
+                   [[ "${addr}" == *"module.streamlit_gold_view_grants.snowflake_grant_privileges_to_account_role.on_all[0]"* ]]; then
+                  echo "Removing stale on_all grant state: ${addr}"
+                  terraform -chdir=terraform state rm "${addr}" >/dev/null
+                fi
+              fi
+            done <<< "${STALE_GRANT_ADDRESSES}"
+          fi
+
           terraform -chdir=terraform apply -lock-timeout=5m -auto-approve | tee artifacts/terraform/prod-apply.log
 
       - name: Save terraform apply artifacts
